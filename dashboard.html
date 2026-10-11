@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriLink Admin — Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="container">
+    <header class="topbar">
+      <div>
+        <strong>AgriLink Admin</strong>
+        <div class="small" id="whoami"></div>
+      </div>
+      <button class="btn-outline" id="logoutBtn">Log out</button>
+    </header>
+
+    <div class="grid">
+      <button class="tile" data-view="settings">⚙️ Settings</button>
+      <button class="tile" data-view="admins">🛡️ Admins</button>
+      <button class="tile" data-view="profiles">👤 Profiles</button>
+      <button class="tile" data-view="reports" disabled>🚩 Reports<br><small>coming soon</small></button>
+    </div>
+
+    <div id="view" class="view"></div>
+  </div>
+
+  <script src="supabase.js"></script>
+  <script>
+    let session;
+
+    async function init() {
+      session = await requireAuth();
+      if (!session) return;
+
+      const admin = await isAdmin();
+      if (!admin) {
+        await logout();
+        return;
+      }
+
+      document.getElementById('whoami').textContent = session.user.email;
+
+      document.getElementById('logoutBtn').addEventListener('click', logout);
+      document.querySelectorAll('.tile').forEach(t => {
+        if (t.disabled) return;
+        t.addEventListener('click', () => loadView(t.dataset.view));
+      });
+    }
+
+    async function loadView(name) {
+      const view = document.getElementById('view');
+      view.innerHTML = '<p class="small">Loading…</p>';
+      try {
+        if (name === 'settings') return renderSettings(view);
+        if (name === 'admins') return renderAdmins(view);
+        if (name === 'profiles') return renderProfiles(view);
+      } catch (err) {
+        view.innerHTML = '<p class="msg">' + err.message + '</p>';
+      }
+    }
+
+    async function renderSettings(view) {
+      const s = await getSettings();
+      if (!s) { view.innerHTML = '<p class="small">No settings row found.</p>'; return; }
+      view.innerHTML = `
+        <h2>Settings</h2>
+        <table>
+          <tr><th>Platform</th><td>${s.platform_name ?? ''}</td></tr>
+          <tr><th>Tagline</th><td>${s.tagline ?? ''}</td></tr>
+          <tr><th>Country</th><td>${s.country ?? ''}</td></tr>
+          <tr><th>Currency</th><td>${s.currency_code ?? ''} (${s.currency_symbol ?? ''})</td></tr>
+          <tr><th>Language</th><td>${s.language ?? ''}</td></tr>
+          <tr><th>Products</th><td>${s.feature_products ? '✅' : '❌'}</td></tr>
+          <tr><th>Services</th><td>${s.feature_services ? '✅' : '❌'}</td></tr>
+          <tr><th>Jobs</th><td>${s.feature_jobs ? '✅' : '❌'}</td></tr>
+          <tr><th>Ads</th><td>${s.feature_ads ? '✅' : '❌'}</td></tr>
+          <tr><th>Advisory</th><td>${s.feature_advisory ? '✅' : '❌'}</td></tr>
+          <tr><th>Maintenance</th><td>${s.maintenance_mode ? 'ON' : 'off'}</td></tr>
+        </table>
+      `;
+    }
+
+    async function renderAdmins(view) {
+      const admins = await getAdmins();
+      view.innerHTML = '<h2>Admins</h2>' + tableFromRows(admins);
+    }
+
+    async function renderProfiles(view) {
+      const profiles = await getProfiles();
+      view.innerHTML = '<h2>Profiles</h2>' + tableFromRows(profiles);
+    }
+
+    function tableFromRows(rows) {
+      if (!rows || rows.length === 0) return '<p class="small">No rows.</p>';
+      const cols = Object.keys(rows[0]);
+      let html = '<table><thead><tr>';
+      cols.forEach(c => html += '<th>' + c + '</th>');
+      html += '</tr></thead><tbody>';
+      rows.forEach(r => {
+        html += '<tr>';
+        cols.forEach(c => {
+          let v = r[c];
+          if (v === null || v === undefined) v = '';
+          if (typeof v === 'object') v = JSON.stringify(v);
+          html += '<td>' + String(v) + '</td>';
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      return html;
+    }
+
+    init();
+  </script>
+</body>
+</html>
