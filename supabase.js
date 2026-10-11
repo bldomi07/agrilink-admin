@@ -1,19 +1,20 @@
 // ============================================
 // AgriLink Admin Centre — Supabase Connection
 // ============================================
-// ⚠️ These two values are SAFE to be in the browser
-// as long as Row Level Security (RLS) is ON — which it is.
+// These two values are SAFE to be in the browser
+// as long as Row Level Security (RLS) is ON.
 // NEVER paste your service_role key here.
 
 const SUPABASE_URL = 'https://uwrktkusglldbmezepya.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_ji1ivwRE1mtYGl9HcjKkXg_JdT4Msss';
 
-// Load Supabase client from CDN
+// Load Supabase client from CDN (already included in HTML)
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
-    autoRefreshToken: true
+    autoRefreshToken: true,
+    detectSessionInUrl: false
   }
 });
 
@@ -25,7 +26,7 @@ async function login(email, password) {
 }
 
 async function logout() {
-  await db.auth.signOut();
+  try { await db.auth.signOut(); } catch (e) {}
   window.location.href = 'index.html';
 }
 
@@ -34,7 +35,6 @@ async function getSession() {
   return data.session;
 }
 
-// Redirect to login if not signed in
 async function requireAuth() {
   const session = await getSession();
   if (!session) {
@@ -48,18 +48,27 @@ async function requireAuth() {
 async function isAdmin() {
   const session = await getSession();
   if (!session) return false;
+
   const { data, error } = await db
     .from('admin_roles')
     .select('role')
     .eq('user_id', session.user.id)
     .maybeSingle();
-  if (error) return false;
+
+  if (error) {
+    console.error('isAdmin error:', error);
+    return false;
+  }
   return !!data;
 }
 
 // ---------- Data helpers ----------
 async function getSettings() {
-  const { data, error } = await db.from('settings').select('*').eq('id', 1).maybeSingle();
+  const { data, error } = await db
+    .from('settings')
+    .select('*')
+    .eq('id', 1)
+    .maybeSingle();
   if (error) throw error;
   return data;
 }
