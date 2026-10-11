@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriLink Admin Centre — Login</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>AgriLink</h1>
+      <p class="subtitle">Admin Centre</p>
+
+      <form id="loginForm">
+        <label>Email</label>
+        <input id="email" type="email" required autocomplete="username" />
+
+        <label>Password</label>
+        <input id="password" type="password" required autocomplete="current-password" />
+
+        <button type="submit" id="loginBtn">Log In</button>
+        <p id="msg" class="msg"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="supabase.js"></script>
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('msg');
+      const btn = document.getElementById('loginBtn');
+      msg.textContent = '';
+      btn.disabled = true;
+      btn.textContent = 'Logging in…';
+
+      try {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        await login(email, password);
+
+        const admin = await isAdmin();
+        if (!admin) {
+          await logout();
+          throw new Error('This account is not an admin.');
+        }
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        msg.textContent = err.message || 'Login failed.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Log In';
+      }
+    });
+  </script>
+</body>
+</html>
