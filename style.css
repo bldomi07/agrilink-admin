@@ -20,18 +20,10 @@ body {
   box-shadow: 0 4px 20px rgba(0,0,0,0.06);
 }
 
-h1 {
-  color: #1e7a3c;
-  margin: 0;
-  font-size: 28px;
-}
+h1 { color: #1e7a3c; margin: 0; font-size: 28px; }
 h2 { color: #1e7a3c; margin-top: 0; }
 
-.subtitle {
-  margin-top: 4px;
-  color: #666;
-  font-size: 14px;
-}
+.subtitle { margin-top: 4px; color: #666; font-size: 14px; }
 
 label {
   display: block;
@@ -74,12 +66,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   border: 1px solid #1e7a3c;
 }
 
-.msg {
-  margin-top: 12px;
-  font-size: 14px;
-  color: #b00020;
-}
-
+.msg { margin-top: 12px; font-size: 14px; color: #b00020; }
 .small { font-size: 13px; color: #666; }
 
 .topbar {
@@ -106,7 +93,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   cursor: pointer;
   text-align: center;
 }
-.tile:disabled { color: #999; border-color: #e2e2e2; }
+.tile:disabled { color: #999; border-color: #e2e2e2; cursor: not-allowed; }
 
 .view {
   margin-top: 20px;
@@ -129,3 +116,15 @@ th, td {
   word-break: break-word;
 }
 th { background: #f6faf7; color: #333; }
+
+label.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 14px;
+}
+label.check input {
+  width: auto;
+  margin: 0;
+}
