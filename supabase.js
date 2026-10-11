@@ -5,7 +5,7 @@
 // as long as Row Level Security (RLS) is ON — which it is.
 // NEVER paste your service_role key here.
 
-const SUPABASE_URL = 'https://uwrktkusglldbmezepya.supabase.co/rest/v1/';
+const SUPABASE_URL = 'https://uwrktkusglldbmezepya.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_ji1ivwRE1mtYGl9HcjKkXg_JdT4Msss';
 
 // Load Supabase client from CDN
