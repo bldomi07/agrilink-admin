@@ -5,10 +5,10 @@
 // as long as Row Level Security (RLS) is ON.
 // NEVER paste your service_role key here.
 
-const SUPABASE_URL = 'https://uwrktkusglldbmezepya.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_ji1ivwRE1mtYGl9HcjKkXg_JdT4Msss';
+const SUPABASE_URL = 'PASTE_YOUR_PROJECT_URL_HERE';
+const SUPABASE_ANON_KEY = 'PASTE_YOUR_ANON_KEY_HERE';
 
-// Load Supabase client from CDN (already included in HTML)
+// Supabase client
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
@@ -48,21 +48,16 @@ async function requireAuth() {
 async function isAdmin() {
   const session = await getSession();
   if (!session) return false;
-
   const { data, error } = await db
     .from('admin_roles')
     .select('role')
     .eq('user_id', session.user.id)
     .maybeSingle();
-
-  if (error) {
-    console.error('isAdmin error:', error);
-    return false;
-  }
+  if (error) return false;
   return !!data;
 }
 
-// ---------- Data helpers ----------
+// ---------- Settings ----------
 async function getSettings() {
   const { data, error } = await db
     .from('settings')
@@ -73,12 +68,35 @@ async function getSettings() {
   return data;
 }
 
+async function updateSettings(updates) {
+  const session = await getSession();
+  if (!session) throw new Error('Not signed in');
+
+  const { data, error } = await db
+    .from('settings')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+      updated_by: session.user.id
+    })
+    .eq('id', 1)
+    .select();
+
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error('Update was blocked. RLS policy may be missing.');
+  }
+  return data[0];
+}
+
+// ---------- Admins ----------
 async function getAdmins() {
   const { data, error } = await db.from('admin_roles').select('*');
   if (error) throw error;
   return data;
 }
 
+// ---------- Profiles ----------
 async function getProfiles() {
   const { data, error } = await db
     .from('profiles')
