@@ -21,7 +21,7 @@
       <button class="tile" data-view="settings">⚙️ Settings</button>
       <button class="tile" data-view="admins">🛡️ Admins</button>
       <button class="tile" data-view="profiles">👤 Profiles</button>
-      <button class="tile" data-view="reports" disabled>🚩 Reports<br><small>coming soon</small></button>
+      <button class="tile" disabled>🚩 Reports<br><small>coming soon</small></button>
     </div>
 
     <div id="view" class="view"></div>
@@ -29,10 +29,8 @@
 
   <script src="supabase.js"></script>
   <script>
-    let session;
-
     async function init() {
-      session = await requireAuth();
+      const session = await requireAuth();
       if (!session) return;
 
       const admin = await isAdmin();
@@ -42,10 +40,9 @@
       }
 
       document.getElementById('whoami').textContent = session.user.email;
-
       document.getElementById('logoutBtn').addEventListener('click', logout);
-      document.querySelectorAll('.tile').forEach(t => {
-        if (t.disabled) return;
+
+      document.querySelectorAll('.tile[data-view]').forEach(t => {
         t.addEventListener('click', () => loadView(t.dataset.view));
       });
     }
@@ -55,44 +52,108 @@
       view.innerHTML = '<p class="small">Loading…</p>';
       try {
         if (name === 'settings') return renderSettings(view);
-        if (name === 'admins') return renderAdmins(view);
+        if (name === 'admins')   return renderAdmins(view);
         if (name === 'profiles') return renderProfiles(view);
       } catch (err) {
         view.innerHTML = '<p class="msg">' + err.message + '</p>';
       }
     }
 
+    // ---------- Settings (editable) ----------
     async function renderSettings(view) {
       const s = await getSettings();
-      if (!s) { view.innerHTML = '<p class="small">No settings row found.</p>'; return; }
+      if (!s) {
+        view.innerHTML = '<p class="small">No settings row found.</p>';
+        return;
+      }
+
       view.innerHTML = `
         <h2>Settings</h2>
-        <table>
-          <tr><th>Platform</th><td>${s.platform_name ?? ''}</td></tr>
-          <tr><th>Tagline</th><td>${s.tagline ?? ''}</td></tr>
-          <tr><th>Country</th><td>${s.country ?? ''}</td></tr>
-          <tr><th>Currency</th><td>${s.currency_code ?? ''} (${s.currency_symbol ?? ''})</td></tr>
-          <tr><th>Language</th><td>${s.language ?? ''}</td></tr>
-          <tr><th>Products</th><td>${s.feature_products ? '✅' : '❌'}</td></tr>
-          <tr><th>Services</th><td>${s.feature_services ? '✅' : '❌'}</td></tr>
-          <tr><th>Jobs</th><td>${s.feature_jobs ? '✅' : '❌'}</td></tr>
-          <tr><th>Ads</th><td>${s.feature_ads ? '✅' : '❌'}</td></tr>
-          <tr><th>Advisory</th><td>${s.feature_advisory ? '✅' : '❌'}</td></tr>
-          <tr><th>Maintenance</th><td>${s.maintenance_mode ? 'ON' : 'off'}</td></tr>
-        </table>
+        <form id="settingsForm">
+          <label>Platform name</label>
+          <input id="platform_name" value="${escapeHtml(s.platform_name ?? '')}">
+
+          <label>Tagline</label>
+          <input id="tagline" value="${escapeHtml(s.tagline ?? '')}">
+
+          <label>Support email</label>
+          <input id="support_email" value="${escapeHtml(s.support_email ?? '')}">
+
+          <label>Support phone</label>
+          <input id="support_phone" value="${escapeHtml(s.support_phone ?? '')}">
+
+          <label>Country</label>
+          <input id="country" value="${escapeHtml(s.country ?? '')}">
+
+          <label>Currency code</label>
+          <input id="currency_code" value="${escapeHtml(s.currency_code ?? '')}">
+
+          <label>Currency symbol</label>
+          <input id="currency_symbol" value="${escapeHtml(s.currency_symbol ?? '')}">
+
+          <label>Language</label>
+          <input id="language" value="${escapeHtml(s.language ?? '')}">
+
+          <label class="check"><input type="checkbox" id="feature_products" ${s.feature_products ? 'checked' : ''}> Product listings</label>
+          <label class="check"><input type="checkbox" id="feature_services" ${s.feature_services ? 'checked' : ''}> Services</label>
+          <label class="check"><input type="checkbox" id="feature_jobs" ${s.feature_jobs ? 'checked' : ''}> Jobs</label>
+          <label class="check"><input type="checkbox" id="feature_ads" ${s.feature_ads ? 'checked' : ''}> Advertisements</label>
+          <label class="check"><input type="checkbox" id="feature_advisory" ${s.feature_advisory ? 'checked' : ''}> Advisory</label>
+          <label class="check"><input type="checkbox" id="maintenance_mode" ${s.maintenance_mode ? 'checked' : ''}> Maintenance mode</label>
+
+          <button type="submit" id="saveSettingsBtn">Save</button>
+          <p id="settingsMsg" class="small"></p>
+        </form>
       `;
+
+      document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = document.getElementById('settingsMsg');
+        const btn = document.getElementById('saveSettingsBtn');
+        msg.textContent = 'Saving…';
+        btn.disabled = true;
+
+        const updates = {
+          platform_name:    document.getElementById('platform_name').value.trim(),
+          tagline:          document.getElementById('tagline').value.trim(),
+          support_email:    document.getElementById('support_email').value.trim(),
+          support_phone:    document.getElementById('support_phone').value.trim(),
+          country:          document.getElementById('country').value.trim(),
+          currency_code:    document.getElementById('currency_code').value.trim(),
+          currency_symbol:  document.getElementById('currency_symbol').value.trim(),
+          language:         document.getElementById('language').value.trim(),
+          feature_products: document.getElementById('feature_products').checked,
+          feature_services: document.getElementById('feature_services').checked,
+          feature_jobs:     document.getElementById('feature_jobs').checked,
+          feature_ads:      document.getElementById('feature_ads').checked,
+          feature_advisory: document.getElementById('feature_advisory').checked,
+          maintenance_mode: document.getElementById('maintenance_mode').checked,
+        };
+
+        try {
+          await updateSettings(updates);
+          msg.textContent = '✅ Saved.';
+        } catch (err) {
+          msg.textContent = '❌ ' + (err.message || 'Failed to save.');
+        } finally {
+          btn.disabled = false;
+        }
+      });
     }
 
+    // ---------- Admins (read-only) ----------
     async function renderAdmins(view) {
       const admins = await getAdmins();
       view.innerHTML = '<h2>Admins</h2>' + tableFromRows(admins);
     }
 
+    // ---------- Profiles (read-only) ----------
     async function renderProfiles(view) {
       const profiles = await getProfiles();
       view.innerHTML = '<h2>Profiles</h2>' + tableFromRows(profiles);
     }
 
+    // ---------- helpers ----------
     function tableFromRows(rows) {
       if (!rows || rows.length === 0) return '<p class="small">No rows.</p>';
       const cols = Object.keys(rows[0]);
@@ -105,12 +166,20 @@
           let v = r[c];
           if (v === null || v === undefined) v = '';
           if (typeof v === 'object') v = JSON.stringify(v);
-          html += '<td>' + String(v) + '</td>';
+          html += '<td>' + escapeHtml(v) + '</td>';
         });
         html += '</tr>';
       });
       html += '</tbody></table>';
       return html;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
     }
 
     init();
