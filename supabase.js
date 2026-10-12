@@ -1,16 +1,10 @@
-// ============================================
-// AgriLink Admin Centre — Supabase Connection
-// ============================================
-// These two values are SAFE to be in the browser
-// as long as Row Level Security (RLS) is ON.
-// NEVER paste your service_role key here.
+// AgriLink Admin Centre — supabase.js
+// Two values to fill: SUPABASE_URL and SUPABASE_ANON_KEY
 
 const SUPABASE_URL = 'https://uwrktkusglldbmezepya.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_ji1ivwRE1mtYGl9HcjKkXg_JdT4Msss';
 
-// Supabase client
-const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -18,11 +12,11 @@ const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 
-// ---------- Auth helpers ----------
+// ---------- Auth ----------
 async function login(email, password) {
-  const { data, error } = await db.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  return data;
+  const r = await db.auth.signInWithPassword({ email, password });
+  if (r.error) throw r.error;
+  return r.data;
 }
 
 async function logout() {
@@ -31,117 +25,109 @@ async function logout() {
 }
 
 async function getSession() {
-  const { data } = await db.auth.getSession();
-  return data.session;
+  const r = await db.auth.getSession();
+  return r.data.session;
 }
 
 async function requireAuth() {
-  const session = await getSession();
-  if (!session) {
+  const s = await getSession();
+  if (!s) {
     window.location.href = 'index.html';
     return null;
   }
-  return session;
+  return s;
 }
 
-// ---------- Admin check ----------
 async function isAdmin() {
-  const session = await getSession();
-  if (!session) return false;
-  const { data, error } = await db
+  const s = await getSession();
+  if (!s) return false;
+  const r = await db
     .from('admin_roles')
     .select('role')
-    .eq('user_id', session.user.id)
+    .eq('user_id', s.user.id)
     .maybeSingle();
-  if (error) return false;
-  return !!data;
+  if (r.error) return false;
+  return !!r.data;
 }
 
 // ---------- Settings ----------
 async function getSettings() {
-  const { data, error } = await db
-    .from('settings')
-    .select('*')
-    .eq('id', 1)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
+  const r = await db.from('settings').select('*').eq('id', 1).maybeSingle();
+  if (r.error) throw r.error;
+  return r.data;
 }
 
 async function updateSettings(updates) {
-  const session = await getSession();
-  if (!session) throw new Error('Not signed in');
-
-  const { data, error } = await db
+  const s = await getSession();
+  if (!s) throw new Error('Not signed in');
+  const r = await db
     .from('settings')
-    .update({
-      ...updates,
+    .update(Object.assign({}, updates, {
       updated_at: new Date().toISOString(),
-      updated_by: session.user.id
-    })
+      updated_by: s.user.id
+    }))
     .eq('id', 1)
     .select();
-
-  if (error) throw error;
-  if (!data || data.length === 0) {
-    throw new Error('Update was blocked. RLS policy may be missing.');
-  }
-  return data[0];
+  if (r.error) throw r.error;
+  if (!r.data || r.data.length === 0) throw new Error('Update blocked by RLS');
+  return r.data[0];
 }
 
 // ---------- Admins ----------
 async function getAdmins() {
-  const { data, error } = await db.from('admin_roles').select('*');
-  if (error) throw error;
-  return data;
+  const r = await db.from('admin_roles').select('*');
+  if (r.error) throw r.error;
+  return r.data;
 }
 
 // ---------- Profiles ----------
 async function getProfiles() {
-  const { data, error } = await db
+  const r = await db
     .from('profiles')
-    .select('id, full_name, user_name, phone, email, county, roles, is_active, created_at');
-  if (error) throw error;
-  return data;
+    .select('id, full_name, user_name, phone, email, county, roles, is_active, is_verified, is_blocked, created_at');
+  if (r.error) throw r.error;
+  return r.data;
 }
+
 async function updateProfile(id, updates) {
-  const { data, error } = await db
+  const r = await db
     .from('profiles')
     .update(updates)
     .eq('id', id)
     .select();
-  if (error) throw error;
-  if (!data || data.length === 0) throw new Error('Update blocked by RLS');
-  return data[0];
+  if (r.error) throw r.error;
+  if (!r.data || r.data.length === 0) throw new Error('Update blocked by RLS');
+  return r.data[0];
 }
-// --- Products ---
+
+// ---------- Products ----------
 async function getProducts() {
-  const { data, error } = await db
+  const r = await db
     .from('products')
-    .select('id, title, category, price, currency, quantity, unit, county, status, is_featured, created_at, seller_id, photo_url')
+    .select('id, title, category, price, currency, quantity, unit, county, location, country, status, is_featured, created_at, seller_id, seller_name, seller_phone, image_url')
     .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data;
+  if (r.error) throw r.error;
+  return r.data;
 }
 
 async function getProduct(id) {
-  const { data, error } = await db.from('products').select('*').eq('id', id).maybeSingle();
-  if (error) throw error;
-  return data;
+  const r = await db.from('products').select('*').eq('id', id).maybeSingle();
+  if (r.error) throw r.error;
+  return r.data;
 }
 
 async function updateProduct(id, updates) {
-  const { data, error } = await db
+  const r = await db
     .from('products')
     .update(Object.assign({}, updates, { updated_at: new Date().toISOString() }))
     .eq('id', id)
     .select();
-  if (error) throw error;
-  if (!data || data.length === 0) throw new Error('Update blocked by RLS');
-  return data[0];
+  if (r.error) throw r.error;
+  if (!r.data || r.data.length === 0) throw new Error('Update blocked by RLS');
+  return r.data[0];
 }
 
 async function deleteProduct(id) {
-  const { error } = await db.from('products').delete().eq('id', id);
-  if (error) throw error;
+  const r = await db.from('products').delete().eq('id', id);
+  if (r.error) throw r.error;
 }
