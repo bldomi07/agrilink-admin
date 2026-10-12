@@ -16,7 +16,7 @@
       <span class="logo-icon">🚜</span>
       <span class="logo-text">AgriLink</span>
     </div>
-    <a href="../index.html" class="login-btn">Log in</a>
+    <a href="login.html" class="login-btn" id="authLink">Log in</a>
   </header>
 
   <nav class="tabs">
@@ -37,9 +37,28 @@
 
   <script src="supabase.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', load);
+    document.addEventListener('DOMContentLoaded', init);
 
-    async function load() {
+    async function init() {
+      // Update header link based on login state
+      try {
+        const session = await getSession();
+        const link = document.getElementById('authLink');
+        if (session) {
+          link.textContent = 'My account';
+          link.href = 'me.html';
+        } else {
+          link.textContent = 'Log in';
+          link.href = 'login.html';
+        }
+      } catch (e) {
+        // Ignore — default is fine
+      }
+
+      loadProducts();
+    }
+
+    async function loadProducts() {
       const content = document.getElementById('content');
       try {
         const products = await getPublicProducts();
@@ -57,7 +76,7 @@
 
     function cardHtml(p) {
       const img = p.image_url
-        ? '<img src="' + escapeHtml(p.image_url) + '" alt="' + escapeHtml(p.title || '') + '" loading="lazy">'
+        ? '<img src="' + escapeHtml(p.image_url) + '" alt="' + escapeHtml(p.title || '') + '" loading="lazy" onerror="this.parentNode.innerHTML=\'<div class=&quot;placeholder&quot;>🌾</div>\'">'
         : '<div class="placeholder">🌾</div>';
 
       const featured = p.is_featured ? '<span class="badge-featured">Featured</span>' : '';
