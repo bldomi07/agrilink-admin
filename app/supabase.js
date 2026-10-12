@@ -115,3 +115,26 @@ async function getPublicSettings() {
   if (r.error) throw r.error;
   return r.data;
 }
+async function createProduct(data) {
+  const s = await getSession();
+  if (!s) throw new Error('You must be logged in.');
+
+  // Grab seller info from their profile
+  const profile = await getMyProfile();
+  if (!profile) throw new Error('Profile not found.');
+
+  const row = Object.assign({}, data, {
+    seller_id: s.user.id,
+    seller_name: profile.full_name || '',
+    seller_phone: profile.phone || '',
+    country: 'Kenya',
+    currency: 'KES',
+    status: 'active',
+    is_featured: false,
+    view_count: 0
+  });
+
+  const r = await db.from('products').insert(row).select().single();
+  if (r.error) throw r.error;
+  return r.data;
+}
