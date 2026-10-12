@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My account — AgriLink</title>
+  <link rel="stylesheet" href="app.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚜</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .wrap { max-width: 640px; margin: 12px auto; padding: 0 12px; }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .who { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .who h1 { margin: 0 0 4px; font-size: 20px; color: #1c1c1c; }
+    .who .meta { color: #666; font-size: 13px; margin: 2px 0; }
+    .logout-btn {
+      background: #fff; color: #b00020; border: 1px solid #b00020;
+      padding: 8px 12px; border-radius: 8px; font-size: 13px;
+      font-weight: 600; cursor: pointer;
+    }
+    .section-head {
+      display: flex; justify-content: space-between; align-items: center;
+      margin: 20px 4px 10px;
+    }
+    .section-head h2 { font-size: 16px; margin: 0; color: #1e7a3c; }
+    .btn-primary {
+      background: #1e7a3c; color: #fff; text-decoration: none;
+      padding: 8px 14px; border-radius: 8px; font-size: 13px;
+      font-weight: 700; border: 0; cursor: pointer;
+    }
+    .row {
+      display: flex; gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .row:last-child { border-bottom: 0; }
+    .row-img {
+      width: 68px; height: 68px;
+      border-radius: 10px;
+      background: #eef3ef;
+      flex-shrink: 0;
+      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; color: #a8bfb0;
+    }
+    .row-img img { width: 100%; height: 100%; object-fit: cover; }
+    .row-body { flex: 1; min-width: 0; }
+    .row-title {
+      font-size: 15px; font-weight: 600;
+      margin: 0 0 2px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .row-price { color: #1e7a3c; font-weight: 700; font-size: 14px; }
+    .row-meta { color: #777; font-size: 12px; margin-top: 2px; }
+    .row-actions {
+      display: flex; gap: 6px;
+      margin-top: 8px; flex-wrap: wrap;
+    }
+    .row-actions a, .row-actions button {
+      font-size: 12px; padding: 6px 10px;
+      border-radius: 6px; cursor: pointer;
+      text-decoration: none;
+      border: 1px solid #1e7a3c; background: #fff; color: #1e7a3c;
+      font-weight: 600;
+    }
+    .row-actions .danger { color: #b00020; border-color: #b00020; }
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px; border-radius: 999px;
+      font-size: 11px; font-weight: 700;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .status-active { background: #d6f5e0; color: #146c34; }
+    .status-sold   { background: #eee; color: #666; }
+    .status-archived { background: #fef0d5; color: #7a4d00; }
+    .status-blocked { background: #ffd9dd; color: #8a0016; }
+    .empty { text-align: center; padding: 30px 10px; color: #777; font-size: 14px; }
+    .loading { text-align: center; padding: 40px; color: #777; }
+    .error { color: #b00020; text-align: center; padding: 20px; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="logo">
+      <span class="logo-icon">🚜</span>
+      <span class="logo-text">AgriLink</span>
+    </div>
+    <a href="index.html" class="login-btn">Browse</a>
+  </header>
+
+  <main class="wrap" id="content">
+    <p class="loading">Loading…</p>
+  </main>
+
+  <script src="supabase.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', init);
+
+    async function init() {
+      const content = document.getElementById('content');
+      try {
+        const session = await getSession();
+        if (!session) {
+          window.location.href = 'login.html';
+          return;
+        }
+
+        const profile = await getMyProfile();
+        const products = await getMyProducts();
+
+        content.innerHTML = renderPage(profile, session.user.email, products);
+        attachHandlers();
+      } catch (err) {
+        content.innerHTML = '<p class="error">Failed to load: ' + escapeHtml(err.message) + '</p>';
+      }
+    }
+
+    function renderPage(profile, email, products) {
+      const name = profile && profile.full_name ? profile.full_name : email;
+      const phone = profile && profile.phone ? profile.phone : '';
+      const county = profile && profile.county ? profile.county : '';
+      const roles = profile && Array.isArray(profile.roles) ? profile.roles.join(', ') : '';
+
+      const listings = products.length === 0
+        ? '<div class="empty">You haven\'t posted any products yet.<br><br><a class="btn-primary" href="sell.html">+ Post your first product</a></div>'
+        : products.map(rowHtml).join('');
+
+      return `
+        <div class="card">
+          <div class="who">
+            <div>
+              <h1>${escapeHtml(name)}</h1>
+              ${phone ? '<p class="meta">' + escapeHtml(phone) + '</p>' : ''}
+              ${county ? '<p class="meta">' + escapeHtml(county) + '</p>' : ''}
+              ${roles ? '<p class="meta">' + escapeHtml(roles) + '</p>' : ''}
+            </div>
+            <button class="logout-btn" id="logoutBtn">Log out</button>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <h2>My listings</h2>
+          <a class="btn-primary" href="sell.html">+ Post new</a>
+        </div>
+
+        <div class="card">${listings}</div>
+      `;
+    }
+
+    function rowHtml(p) {
+      const img = p.image_url
+        ? '<img src="' + escapeHtml(p.image_url) + '" alt="" onerror="this.parentNode.innerHTML=\'🌾\'">'
+        : '🌾';
+
+      const price = (p.currency || 'KES') + ' ' + Number(p.price || 0).toLocaleString();
+      const unit = p.unit ? ' / ' + escapeHtml(p.unit) : '';
+      const place = [p.location, p.county].filter(Boolean).join(', ');
+
+      const status = p.status || 'active';
+      const statusBadge = '<span class="status-badge status-' + status + '">' + status + '</span>';
+
+      const soldBtn = status === 'active'
+        ? '<button data-action="sold" data-id="' + p.id + '">Mark sold</button>'
+        : '';
+
+      return `
+        <div class="row">
+          <div class="row-img">${img}</div>
+          <div class="row-body">
+            <p class="row-title">${escapeHtml(p.title || '(untitled)')} ${statusBadge}</p>
+            <div class="row-price">${escapeHtml(price)}${unit}</div>
+            ${place ? '<div class="row-meta">' + escapeHtml(place) + '</div>' : ''}
+            <div class="row-actions">
+              <a href="product.html?id=${encodeURIComponent(p.id)}">View</a>
+              ${soldBtn}
+              <button class="danger" data-action="delete" data-id="${p.id}">Delete</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function attachHandlers() {
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) logoutBtn.addEventListener('click', logout);
+
+      document.querySelectorAll('button[data-action]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const action = btn.dataset.action;
+          btn.disabled = true;
+          const original = btn.textContent;
+          btn.textContent = '…';
+
+          try {
+            if (action === 'delete') {
+              if (!confirm('Delete this listing permanently?')) {
+                btn.disabled = false;
+                btn.textContent = original;
+                return;
+              }
+              await deleteMyProduct(id);
+            }
+            if (action === 'sold') {
+              await markMyProductSold(id);
+            }
+            await init();
+          } catch (err) {
+            alert('Error: ' + (err.message || 'Failed'));
+            btn.disabled = false;
+            btn.textContent = original;
+          }
+        });
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
