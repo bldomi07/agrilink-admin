@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Post a product — AgriLink</title>
+  <link rel="stylesheet" href="app.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚜</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .wrap {
+      max-width: 500px;
+      margin: 12px auto;
+      padding: 16px;
+      background: #fff;
+      border-radius: 14px;
+    }
+    .wrap h1 {
+      font-size: 22px; color: #1e7a3c;
+      margin: 0 0 4px;
+    }
+    .wrap p.sub {
+      color: #666; font-size: 14px;
+      margin: 0 0 16px;
+    }
+    label {
+      display: block; margin-top: 14px;
+      font-size: 13px; color: #333;
+      font-weight: 600;
+    }
+    input, select, textarea {
+      width: 100%; padding: 12px; font-size: 16px;
+      margin-top: 6px; border: 1px solid #cfd8d2;
+      border-radius: 10px; background: #fbfdfb;
+      font-family: inherit;
+    }
+    textarea { resize: vertical; min-height: 80px; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    button.primary {
+      width: 100%; margin-top: 20px; padding: 14px;
+      font-size: 16px; font-weight: 700; color: #fff;
+      background: #1e7a3c; border: 0;
+      border-radius: 10px; cursor: pointer;
+    }
+    button.primary:disabled { opacity: 0.6; }
+    .msg { margin-top: 12px; font-size: 14px; }
+    .msg.error { color: #b00020; }
+    .msg.ok    { color: #146c34; }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="logo">
+      <span class="logo-icon">🚜</span>
+      <span class="logo-text">AgriLink</span>
+    </div>
+    <a href="index.html" class="login-btn">Browse</a>
+  </header>
+
+  <div class="wrap">
+    <h1>Post a product</h1>
+    <p class="sub">Sell your produce to buyers across Kenya</p>
+
+    <form id="sellForm">
+      <label>Title</label>
+      <input id="title" type="text" required placeholder="e.g. Fresh Maize — 90kg bag">
+
+      <label>Category</label>
+      <select id="category">
+        <option value="">— choose —</option>
+        <option value="grain">Grain</option>
+        <option value="vegetable">Vegetables</option>
+        <option value="fruit">Fruits</option>
+        <option value="livestock">Livestock</option>
+        <option value="dairy">Dairy</option>
+        <option value="poultry">Poultry</option>
+        <option value="seed">Seeds & seedlings</option>
+        <option value="other">Other</option>
+      </select>
+
+      <label>Description</label>
+      <textarea id="description" placeholder="Quality, condition, delivery, etc."></textarea>
+
+      <div class="row">
+        <div>
+          <label>Price (KES)</label>
+          <input id="price" type="number" min="0" step="1" required>
+        </div>
+        <div>
+          <label>Unit</label>
+          <select id="unit">
+            <option value="kg">kg</option>
+            <option value="bag">bag</option>
+            <option value="tonne">tonne</option>
+            <option value="litre">litre</option>
+            <option value="piece">piece</option>
+            <option value="dozen">dozen</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Quantity</label>
+          <input id="quantity" type="number" min="1" step="1" value="1" required>
+        </div>
+        <div>
+          <label>County</label>
+          <input id="county" type="text" placeholder="e.g. Nakuru">
+        </div>
+      </div>
+
+      <label>Town / area</label>
+      <input id="location" type="text" placeholder="e.g. Kitale">
+
+      <label>Photo URL (optional)</label>
+      <input id="image_url" type="url" placeholder="https://…">
+
+      <button type="submit" class="primary" id="submitBtn">Post product</button>
+      <p class="msg" id="msg"></p>
+    </form>
+  </div>
+
+  <script src="supabase.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const s = await getSession();
+      if (!s) {
+        window.location.href = 'login.html';
+        return;
+      }
+      document.getElementById('sellForm').addEventListener('submit', submit);
+    });
+
+    async function submit(e) {
+      e.preventDefault();
+      const msg = document.getElementById('msg');
+      const btn = document.getElementById('submitBtn');
+      msg.className = 'msg';
+      msg.textContent = '';
+      btn.disabled = true;
+      btn.textContent = 'Posting…';
+
+      try {
+        const payload = {
+          title:       document.getElementById('title').value.trim(),
+          category:    document.getElementById('category').value || null,
+          description: document.getElementById('description').value.trim() || null,
+          price:       Number(document.getElementById('price').value) || 0,
+          unit:        document.getElementById('unit').value,
+          quantity:    Number(document.getElementById('quantity').value) || 1,
+          county:      document.getElementById('county').value.trim() || null,
+          location:    document.getElementById('location').value.trim() || null,
+          image_url:   document.getElementById('image_url').value.trim() || null
+        };
+
+        const created = await createProduct(payload);
+        msg.className = 'msg ok';
+        msg.textContent = '✅ Product posted! Redirecting…';
+        setTimeout(() => {
+          window.location.href = 'product.html?id=' + created.id;
+        }, 1000);
+      } catch (err) {
+        msg.className = 'msg error';
+        msg.textContent = err.message || 'Failed to post.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Post product';
+      }
+    }
+  </script>
+</body>
+</html>
