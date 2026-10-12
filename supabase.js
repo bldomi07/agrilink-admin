@@ -104,3 +104,13 @@ async function getProfiles() {
   if (error) throw error;
   return data;
 }
+async function updateProfile(id, updates) {
+  const { data, error } = await db
+    .from('profiles')
+    .update(updates)
+    .eq('id', id)
+    .select();
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error('Update blocked by RLS');
+  return data[0];
+}
