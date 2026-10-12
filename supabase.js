@@ -131,3 +131,30 @@ async function deleteProduct(id) {
   const r = await db.from('products').delete().eq('id', id);
   if (r.error) throw r.error;
 }
+// ---------- Reports ----------
+async function getReports(statusFilter) {
+  let q = db
+    .from('reports')
+    .select('id, target_type, target_id, reason, details, status, admin_note, created_at, reporter_id, resolved_at')
+    .order('created_at', { ascending: false });
+  if (statusFilter) q = q.eq('status', statusFilter);
+  const r = await q;
+  if (r.error) throw r.error;
+  return r.data;
+}
+
+async function updateReport(id, updates) {
+  const s = await getSession();
+  if (!s) throw new Error('Not signed in');
+  const r = await db
+    .from('reports')
+    .update(Object.assign({}, updates, {
+      resolved_by: s.user.id,
+      resolved_at: new Date().toISOString()
+    }))
+    .eq('id', id)
+    .select();
+  if (r.error) throw r.error;
+  if (!r.data || r.data.length === 0) throw new Error('Update blocked by RLS');
+  return r.data[0];
+}
