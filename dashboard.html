@@ -22,6 +22,7 @@
       <button class="tile" data-view="admins">🛡️ Admins</button>
       <button class="tile" data-view="profiles">👤 Profiles</button>
       <button class="tile" data-view="products">📦 Products</button>
+      <button class="tile" data-view="reports">🚩 Reports</button>
     </div>
 
     <div id="view" class="view"></div>
@@ -49,6 +50,7 @@
         if (name === 'admins')   return renderAdmins(view);
         if (name === 'profiles') return renderProfiles(view);
         if (name === 'products') return renderProducts(view);
+        if (name === 'reports')  return renderReports(view);
       } catch (err) {
         view.innerHTML = '<p class="msg">' + escapeHtml(err.message) + '</p>';
       }
@@ -215,7 +217,6 @@
         `;
       });
       view.innerHTML = html;
-
       view.querySelectorAll('button[data-action]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const id = btn.dataset.id;
@@ -234,6 +235,59 @@
               await deleteProduct(id);
             }
             await renderProducts(view);
+          } catch (err) {
+            alert('Error: ' + (err.message || 'Failed'));
+            btn.disabled = false;
+          }
+        });
+      });
+    }
+
+    // ---------------- REPORTS ----------------
+    async function renderReports(view) {
+      const reports = await getReports();
+      if (!reports || reports.length === 0) {
+        view.innerHTML = '<h2>Reports</h2><p class="small">No reports yet.</p>';
+        return;
+      }
+      let html = '<h2>Reports</h2>';
+      reports.forEach(r => {
+        const when = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+        html += `
+          <div class="profile-card">
+            <div class="profile-head">
+              <strong>${escapeHtml(r.target_type)}</strong>
+              <span class="badge ${r.status === 'open' ? 'badge-warn' : r.status === 'resolved' ? 'badge-ok' : ''}">${escapeHtml(r.status)}</span>
+            </div>
+            <div class="small">Reason: ${escapeHtml(r.reason)}</div>
+            ${r.details ? '<div class="small">Details: ' + escapeHtml(r.details) + '</div>' : ''}
+            <div class="small">Target ID: <code>${escapeHtml(r.target_id)}</code></div>
+            <div class="small">Reported: ${escapeHtml(when)}</div>
+            <div class="profile-actions">
+              <button class="btn-sm" data-action="resolve" data-id="${r.id}">Resolve</button>
+              <button class="btn-sm" data-action="dismiss" data-id="${r.id}">Dismiss</button>
+              <button class="btn-sm btn-danger" data-action="delete" data-id="${r.id}">Delete</button>
+            </div>
+          </div>
+        `;
+      });
+      view.innerHTML = html;
+      view.querySelectorAll('button[data-action]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const action = btn.dataset.action;
+          btn.disabled = true; btn.textContent = '…';
+          try {
+            if (action === 'resolve') await updateReport(id, { status: 'resolved' });
+            if (action === 'dismiss') await updateReport(id, { status: 'dismissed' });
+            if (action === 'delete') {
+              if (!confirm('Delete this report?')) {
+                btn.disabled = false;
+                return renderReports(view);
+              }
+              await db.from('reports').delete().eq('id', id);
+            }
+            await renderReports(view);
           } catch (err) {
             alert('Error: ' + (err.message || 'Failed'));
             btn.disabled = false;
