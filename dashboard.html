@@ -21,7 +21,7 @@
       <button class="tile" data-view="settings">⚙️ Settings</button>
       <button class="tile" data-view="admins">🛡️ Admins</button>
       <button class="tile" data-view="profiles">👤 Profiles</button>
-      <button class="tile" disabled>🚩 Reports<br><small>coming soon</small></button>
+      <button class="tile" data-view="products">📦 Products</button>
     </div>
 
     <div id="view" class="view"></div>
@@ -48,6 +48,7 @@
         if (name === 'settings') return renderSettings(view);
         if (name === 'admins')   return renderAdmins(view);
         if (name === 'profiles') return renderProfiles(view);
+        if (name === 'products') return renderProducts(view);
       } catch (err) {
         view.innerHTML = '<p class="msg">' + escapeHtml(err.message) + '</p>';
       }
@@ -92,8 +93,7 @@
         e.preventDefault();
         const msg = document.getElementById('settingsMsg');
         const btn = document.getElementById('saveSettingsBtn');
-        msg.textContent = 'Saving…';
-        btn.disabled = true;
+        msg.textContent = 'Saving…'; btn.disabled = true;
         const updates = {
           platform_name:    document.getElementById('platform_name').value.trim(),
           tagline:          document.getElementById('tagline').value.trim(),
@@ -115,9 +115,7 @@
           msg.textContent = '✅ Saved.';
         } catch (err) {
           msg.textContent = '❌ ' + escapeHtml(err.message || 'Failed.');
-        } finally {
-          btn.disabled = false;
-        }
+        } finally { btn.disabled = false; }
       });
     }
 
@@ -164,19 +162,79 @@
         `;
       });
       view.innerHTML = html;
+      view.querySelectorAll('button[data-action]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const value = btn.dataset.value === 'true';
+          const action = btn.dataset.action;
+          btn.disabled = true; btn.textContent = '…';
+          try {
+            if (action === 'verify')   await updateProfile(id, { is_verified: value });
+            if (action === 'activate') await updateProfile(id, { is_active: value });
+            if (action === 'block')    await updateProfile(id, { is_blocked: value });
+            await renderProfiles(view);
+          } catch (err) {
+            alert('Error: ' + (err.message || 'Failed'));
+            btn.disabled = false;
+          }
+        });
+      });
+    }
+
+    // ---------------- PRODUCTS ----------------
+    async function renderProducts(view) {
+      const products = await getProducts();
+      if (!products || products.length === 0) {
+        view.innerHTML = '<h2>Products</h2><p class="small">No products yet.</p>';
+        return;
+      }
+      let html = '<h2>Products</h2>';
+      products.forEach(p => {
+        const title = escapeHtml(p.title || '(untitled)');
+        const price = (p.currency || 'KES') + ' ' + (p.price ?? 0);
+        html += `
+          <div class="profile-card">
+            <div class="profile-head">
+              <strong>${title}</strong>
+              <span class="badge">${escapeHtml(p.status || 'active')}</span>
+              ${p.is_featured ? '<span class="badge badge-ok">featured</span>' : ''}
+            </div>
+            <div class="small">${price} · ${p.quantity} ${escapeHtml(p.unit || '')}</div>
+            <div class="small">County: ${escapeHtml(p.county || '—')} · Category: ${escapeHtml(p.category || '—')}</div>
+            <div class="profile-actions">
+              <button class="btn-sm" data-action="feature" data-id="${p.id}" data-value="${!p.is_featured}">
+                ${p.is_featured ? 'Unfeature' : 'Feature'}
+              </button>
+              <button class="btn-sm" data-action="archive" data-id="${p.id}">
+                Archive
+              </button>
+              <button class="btn-sm btn-danger" data-action="block" data-id="${p.id}">
+                Block
+              </button>
+              <button class="btn-sm btn-danger" data-action="delete" data-id="${p.id}">
+                Delete
+              </button>
+            </div>
+          </div>
+        `;
+      });
+      view.innerHTML = html;
 
       view.querySelectorAll('button[data-action]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const id = btn.dataset.id;
           const value = btn.dataset.value === 'true';
           const action = btn.dataset.action;
-          btn.disabled = true;
-          btn.textContent = '…';
+          btn.disabled = true; btn.textContent = '…';
           try {
-            if (action === 'verify')   await updateProfile(id, { is_verified: value });
-            if (action === 'activate') await updateProfile(id, { is_active: value });
-            if (action === 'block')    await updateProfile(id, { is_blocked: value });
-            await renderProfiles(view);
+            if (action === 'feature') await updateProduct(id, { is_featured: value });
+            if (action === 'archive') await updateProduct(id, { status: 'archived' });
+            if (action === 'block')   await updateProduct(id, { status: 'blocked' });
+            if (action === 'delete') {
+              if (!confirm('Delete this product permanently?')) { btn.disabled = false; return renderProducts(view); }
+              await deleteProduct(id);
+            }
+            await renderProducts(view);
           } catch (err) {
             alert('Error: ' + (err.message || 'Failed'));
             btn.disabled = false;
