@@ -192,6 +192,7 @@
       products.forEach(p => {
         const title = escapeHtml(p.title || '(untitled)');
         const price = (p.currency || 'KES') + ' ' + (p.price ?? 0);
+        const place = [p.location, p.county].filter(Boolean).join(', ') || '—';
         html += `
           <div class="profile-card">
             <div class="profile-head">
@@ -200,20 +201,15 @@
               ${p.is_featured ? '<span class="badge badge-ok">featured</span>' : ''}
             </div>
             <div class="small">${price} · ${p.quantity} ${escapeHtml(p.unit || '')}</div>
-            <div class="small">County: ${escapeHtml(p.county || '—')} · Category: ${escapeHtml(p.category || '—')}</div>
+            <div class="small">Seller: ${escapeHtml(p.seller_name || '—')} ${escapeHtml(p.seller_phone || '')}</div>
+            <div class="small">Location: ${escapeHtml(place)} · Category: ${escapeHtml(p.category || '—')}</div>
             <div class="profile-actions">
               <button class="btn-sm" data-action="feature" data-id="${p.id}" data-value="${!p.is_featured}">
                 ${p.is_featured ? 'Unfeature' : 'Feature'}
               </button>
-              <button class="btn-sm" data-action="archive" data-id="${p.id}">
-                Archive
-              </button>
-              <button class="btn-sm btn-danger" data-action="block" data-id="${p.id}">
-                Block
-              </button>
-              <button class="btn-sm btn-danger" data-action="delete" data-id="${p.id}">
-                Delete
-              </button>
+              <button class="btn-sm" data-action="archive" data-id="${p.id}">Archive</button>
+              <button class="btn-sm btn-danger" data-action="block" data-id="${p.id}">Block</button>
+              <button class="btn-sm btn-danger" data-action="delete" data-id="${p.id}">Delete</button>
             </div>
           </div>
         `;
@@ -231,7 +227,10 @@
             if (action === 'archive') await updateProduct(id, { status: 'archived' });
             if (action === 'block')   await updateProduct(id, { status: 'blocked' });
             if (action === 'delete') {
-              if (!confirm('Delete this product permanently?')) { btn.disabled = false; return renderProducts(view); }
+              if (!confirm('Delete this product permanently?')) {
+                btn.disabled = false;
+                return renderProducts(view);
+              }
               await deleteProduct(id);
             }
             await renderProducts(view);
