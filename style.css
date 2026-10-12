@@ -128,3 +128,47 @@ label.check input {
   width: auto;
   margin: 0;
 }
+.profile-card {
+  border: 1px solid #e6ece8;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.profile-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.btn-sm {
+  width: auto;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  background: #fff;
+  color: #1e7a3c;
+  border: 1px solid #1e7a3c;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.btn-sm.btn-danger {
+  color: #b00020;
+  border-color: #b00020;
+}
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eee;
+  color: #555;
+}
+.badge-ok  { background: #d6f5e0; color: #146c34; }
+.badge-bad { background: #ffd9dd; color: #8a0016; }
+.badge-warn{ background: #fff4d6; color: #7a4d00; }
