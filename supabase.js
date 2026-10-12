@@ -114,3 +114,34 @@ async function updateProfile(id, updates) {
   if (!data || data.length === 0) throw new Error('Update blocked by RLS');
   return data[0];
 }
+// --- Products ---
+async function getProducts() {
+  const { data, error } = await db
+    .from('products')
+    .select('id, title, category, price, currency, quantity, unit, county, status, is_featured, created_at, seller_id, photo_url')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+async function getProduct(id) {
+  const { data, error } = await db.from('products').select('*').eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function updateProduct(id, updates) {
+  const { data, error } = await db
+    .from('products')
+    .update(Object.assign({}, updates, { updated_at: new Date().toISOString() }))
+    .eq('id', id)
+    .select();
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error('Update blocked by RLS');
+  return data[0];
+}
+
+async function deleteProduct(id) {
+  const { error } = await db.from('products').delete().eq('id', id);
+  if (error) throw error;
+}
