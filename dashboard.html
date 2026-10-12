@@ -6,6 +6,27 @@
   <title>AgriLink Admin — Dashboard</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .photo-pick {
+      margin-top: 6px;
+      border: 2px dashed #cfd8d2;
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      background: #fbfdfb;
+      cursor: pointer;
+      font-size: 13px;
+      color: #555;
+    }
+    .photo-pick input[type=file] { display: none; }
+    .ad-thumb {
+      width: 100%;
+      max-height: 140px;
+      object-fit: cover;
+      border-radius: 10px;
+      margin-top: 6px;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
@@ -58,30 +79,20 @@
       }
     }
 
-    // ---------------- SETTINGS ----------------
     async function renderSettings(view) {
       const s = await getSettings();
       if (!s) { view.innerHTML = '<p class="small">No settings row found.</p>'; return; }
-
       view.innerHTML = `
         <h2>Settings</h2>
         <form id="settingsForm">
-          <label>Platform name</label>
-          <input id="platform_name" value="${escapeHtml(s.platform_name ?? '')}">
-          <label>Tagline</label>
-          <input id="tagline" value="${escapeHtml(s.tagline ?? '')}">
-          <label>Support email</label>
-          <input id="support_email" value="${escapeHtml(s.support_email ?? '')}">
-          <label>Support phone</label>
-          <input id="support_phone" value="${escapeHtml(s.support_phone ?? '')}">
-          <label>Country</label>
-          <input id="country" value="${escapeHtml(s.country ?? '')}">
-          <label>Currency code</label>
-          <input id="currency_code" value="${escapeHtml(s.currency_code ?? '')}">
-          <label>Currency symbol</label>
-          <input id="currency_symbol" value="${escapeHtml(s.currency_symbol ?? '')}">
-          <label>Language</label>
-          <input id="language" value="${escapeHtml(s.language ?? '')}">
+          <label>Platform name</label><input id="platform_name" value="${escapeHtml(s.platform_name ?? '')}">
+          <label>Tagline</label><input id="tagline" value="${escapeHtml(s.tagline ?? '')}">
+          <label>Support email</label><input id="support_email" value="${escapeHtml(s.support_email ?? '')}">
+          <label>Support phone</label><input id="support_phone" value="${escapeHtml(s.support_phone ?? '')}">
+          <label>Country</label><input id="country" value="${escapeHtml(s.country ?? '')}">
+          <label>Currency code</label><input id="currency_code" value="${escapeHtml(s.currency_code ?? '')}">
+          <label>Currency symbol</label><input id="currency_symbol" value="${escapeHtml(s.currency_symbol ?? '')}">
+          <label>Language</label><input id="language" value="${escapeHtml(s.language ?? '')}">
           <label class="check"><input type="checkbox" id="feature_products" ${s.feature_products ? 'checked' : ''}> Product listings</label>
           <label class="check"><input type="checkbox" id="feature_services" ${s.feature_services ? 'checked' : ''}> Services</label>
           <label class="check"><input type="checkbox" id="feature_jobs" ${s.feature_jobs ? 'checked' : ''}> Jobs</label>
@@ -92,7 +103,6 @@
           <p id="settingsMsg" class="small"></p>
         </form>
       `;
-
       document.getElementById('settingsForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const msg = document.getElementById('settingsMsg');
@@ -114,27 +124,21 @@
           feature_advisory: document.getElementById('feature_advisory').checked,
           maintenance_mode: document.getElementById('maintenance_mode').checked,
         };
-        try {
-          await updateSettings(updates);
-          msg.textContent = '✅ Saved.';
-        } catch (err) {
-          msg.textContent = '❌ ' + escapeHtml(err.message || 'Failed.');
-        } finally { btn.disabled = false; }
+        try { await updateSettings(updates); msg.textContent = '✅ Saved.'; }
+        catch (err) { msg.textContent = '❌ ' + escapeHtml(err.message || 'Failed.'); }
+        finally { btn.disabled = false; }
       });
     }
 
-    // ---------------- ADMINS ----------------
     async function renderAdmins(view) {
       const admins = await getAdmins();
       view.innerHTML = '<h2>Admins</h2>' + tableFromRows(admins);
     }
 
-    // ---------------- PROFILES ----------------
     async function renderProfiles(view) {
       const profiles = await getProfiles();
       if (!profiles || profiles.length === 0) {
-        view.innerHTML = '<h2>Profiles</h2><p class="small">No users yet.</p>';
-        return;
+        view.innerHTML = '<h2>Profiles</h2><p class="small">No users yet.</p>'; return;
       }
       let html = '<h2>Profiles</h2>';
       profiles.forEach(p => {
@@ -152,15 +156,9 @@
             <div class="small">${escapeHtml(p.phone || '')} · ${escapeHtml(p.email || '')}</div>
             <div class="small">County: ${county} · Roles: ${escapeHtml(roles)}</div>
             <div class="profile-actions">
-              <button class="btn-sm" data-action="verify" data-id="${p.id}" data-value="${!p.is_verified}">
-                ${p.is_verified ? 'Unverify' : 'Verify'}
-              </button>
-              <button class="btn-sm" data-action="activate" data-id="${p.id}" data-value="${!p.is_active}">
-                ${p.is_active ? 'Deactivate' : 'Activate'}
-              </button>
-              <button class="btn-sm ${p.is_blocked ? '' : 'btn-danger'}" data-action="block" data-id="${p.id}" data-value="${!p.is_blocked}">
-                ${p.is_blocked ? 'Unblock' : 'Block'}
-              </button>
+              <button class="btn-sm" data-action="verify" data-id="${p.id}" data-value="${!p.is_verified}">${p.is_verified ? 'Unverify' : 'Verify'}</button>
+              <button class="btn-sm" data-action="activate" data-id="${p.id}" data-value="${!p.is_active}">${p.is_active ? 'Deactivate' : 'Activate'}</button>
+              <button class="btn-sm ${p.is_blocked ? '' : 'btn-danger'}" data-action="block" data-id="${p.id}" data-value="${!p.is_blocked}">${p.is_blocked ? 'Unblock' : 'Block'}</button>
             </div>
           </div>
         `;
@@ -177,20 +175,15 @@
             if (action === 'activate') await updateProfile(id, { is_active: value });
             if (action === 'block')    await updateProfile(id, { is_blocked: value });
             await renderProfiles(view);
-          } catch (err) {
-            alert('Error: ' + (err.message || 'Failed'));
-            btn.disabled = false;
-          }
+          } catch (err) { alert('Error: ' + (err.message || 'Failed')); btn.disabled = false; }
         });
       });
     }
 
-    // ---------------- PRODUCTS ----------------
     async function renderProducts(view) {
       const products = await getProducts();
       if (!products || products.length === 0) {
-        view.innerHTML = '<h2>Products</h2><p class="small">No products yet.</p>';
-        return;
+        view.innerHTML = '<h2>Products</h2><p class="small">No products yet.</p>'; return;
       }
       let html = '<h2>Products</h2>';
       products.forEach(p => {
@@ -208,9 +201,7 @@
             <div class="small">Seller: ${escapeHtml(p.seller_name || '—')} ${escapeHtml(p.seller_phone || '')}</div>
             <div class="small">Location: ${escapeHtml(place)} · Category: ${escapeHtml(p.category || '—')}</div>
             <div class="profile-actions">
-              <button class="btn-sm" data-action="feature" data-id="${p.id}" data-value="${!p.is_featured}">
-                ${p.is_featured ? 'Unfeature' : 'Feature'}
-              </button>
+              <button class="btn-sm" data-action="feature" data-id="${p.id}" data-value="${!p.is_featured}">${p.is_featured ? 'Unfeature' : 'Feature'}</button>
               <button class="btn-sm" data-action="archive" data-id="${p.id}">Archive</button>
               <button class="btn-sm btn-danger" data-action="block" data-id="${p.id}">Block</button>
               <button class="btn-sm btn-danger" data-action="delete" data-id="${p.id}">Delete</button>
@@ -230,27 +221,19 @@
             if (action === 'archive') await updateProduct(id, { status: 'archived' });
             if (action === 'block')   await updateProduct(id, { status: 'blocked' });
             if (action === 'delete') {
-              if (!confirm('Delete this product permanently?')) {
-                btn.disabled = false;
-                return renderProducts(view);
-              }
+              if (!confirm('Delete this product permanently?')) { btn.disabled = false; return renderProducts(view); }
               await deleteProduct(id);
             }
             await renderProducts(view);
-          } catch (err) {
-            alert('Error: ' + (err.message || 'Failed'));
-            btn.disabled = false;
-          }
+          } catch (err) { alert('Error: ' + (err.message || 'Failed')); btn.disabled = false; }
         });
       });
     }
 
-    // ---------------- REPORTS ----------------
     async function renderReports(view) {
       const reports = await getReports();
       if (!reports || reports.length === 0) {
-        view.innerHTML = '<h2>Reports</h2><p class="small">No reports yet.</p>';
-        return;
+        view.innerHTML = '<h2>Reports</h2><p class="small">No reports yet.</p>'; return;
       }
       let html = '<h2>Reports</h2>';
       reports.forEach(r => {
@@ -283,22 +266,15 @@
             if (action === 'resolve') await updateReport(id, { status: 'resolved' });
             if (action === 'dismiss') await updateReport(id, { status: 'dismissed' });
             if (action === 'delete') {
-              if (!confirm('Delete this report?')) {
-                btn.disabled = false;
-                return renderReports(view);
-              }
+              if (!confirm('Delete this report?')) { btn.disabled = false; return renderReports(view); }
               await db.from('reports').delete().eq('id', id);
             }
             await renderReports(view);
-          } catch (err) {
-            alert('Error: ' + (err.message || 'Failed'));
-            btn.disabled = false;
-          }
+          } catch (err) { alert('Error: ' + (err.message || 'Failed')); btn.disabled = false; }
         });
       });
     }
 
-    // ---------------- ADS ----------------
     async function renderAds(view) {
       const ads = await getAds();
       let html = '<h2>Advertisements</h2>';
@@ -313,8 +289,12 @@
             <label>Description</label>
             <input id="ad_description" placeholder="Optional short line">
 
-            <label>Image URL (leave blank for a colored card)</label>
-            <input id="ad_image_url" type="url" placeholder="https://…">
+            <label>Photo</label>
+            <div class="photo-pick" id="adPhotoBox">
+              <div id="adPhotoLabel">Tap to choose a photo</div>
+              <input type="file" id="adPhotoInput" accept="image/*">
+            </div>
+            <img id="adPhotoPreview" class="ad-thumb" style="display:none;">
 
             <label>Link URL (where it opens when tapped)</label>
             <input id="ad_link_url" type="url" placeholder="https://…">
@@ -351,7 +331,7 @@
               ${a.is_active ? '<span class="badge badge-ok">active</span>' : '<span class="badge badge-warn">inactive</span>'}
             </div>
             ${a.description ? '<div class="small">' + escapeHtml(a.description) + '</div>' : ''}
-            ${a.image_url ? '<div class="small">Image: ' + escapeHtml(a.image_url) + '</div>' : ''}
+            ${a.image_url ? '<img class="ad-thumb" src="' + escapeHtml(a.image_url) + '" alt="">' : ''}
             ${a.link_url ? '<div class="small">Link: ' + escapeHtml(a.link_url) + '</div>' : ''}
             <div class="small">Sort: ${a.sort_order ?? 0}</div>
             <div class="profile-actions">
@@ -379,10 +359,7 @@
               await deleteAd(id);
             }
             await renderAds(view);
-          } catch (err) {
-            alert('Error: ' + (err.message || 'Failed'));
-            btn.disabled = false;
-          }
+          } catch (err) { alert('Error: ' + (err.message || 'Failed')); btn.disabled = false; }
         });
       });
 
@@ -392,16 +369,41 @@
     function attachAdCreate(view) {
       const form = view.querySelector('#adCreateForm');
       if (!form) return;
+      let pickedFile = null;
+
+      const photoBox = view.querySelector('#adPhotoBox');
+      const photoInput = view.querySelector('#adPhotoInput');
+      const photoLabel = view.querySelector('#adPhotoLabel');
+      const photoPreview = view.querySelector('#adPhotoPreview');
+
+      photoBox.addEventListener('click', () => photoInput.click());
+      photoInput.addEventListener('change', (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        pickedFile = f;
+        photoLabel.textContent = f.name;
+        photoPreview.src = URL.createObjectURL(f);
+        photoPreview.style.display = 'block';
+      });
+
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const msg = view.querySelector('#adCreateMsg');
         const btn = view.querySelector('#adCreateBtn');
-        msg.textContent = 'Creating…'; btn.disabled = true;
+        msg.textContent = ''; btn.disabled = true;
+
         try {
+          let image_url = null;
+          if (pickedFile) {
+            btn.textContent = 'Uploading photo…';
+            image_url = await uploadImage(pickedFile, 'ad');
+          }
+
+          btn.textContent = 'Creating…';
           await createAd({
             title: document.getElementById('ad_title').value.trim(),
             description: document.getElementById('ad_description').value.trim() || null,
-            image_url: document.getElementById('ad_image_url').value.trim() || null,
+            image_url: image_url,
             link_url: document.getElementById('ad_link_url').value.trim() || null,
             position: document.getElementById('ad_position').value,
             sort_order: Number(document.getElementById('ad_sort_order').value) || 0,
@@ -411,11 +413,11 @@
         } catch (err) {
           msg.textContent = '❌ ' + (err.message || 'Failed');
           btn.disabled = false;
+          btn.textContent = 'Create ad';
         }
       });
     }
 
-    // ---------------- helpers ----------------
     function tableFromRows(rows) {
       if (!rows || rows.length === 0) return '<p class="small">No rows.</p>';
       const cols = Object.keys(rows[0]);
