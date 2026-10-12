@@ -10,46 +10,54 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 
+// ---------- Image upload ----------
+async function uploadImage(file, prefix) {
+  const s = await getSession();
+  if (!s) throw new Error('You must be logged in.');
+  if (!file) throw new Error('No file selected.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Image must be under 5 MB.');
+
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const filename = (prefix || 'img') + '-' + Date.now() + '.' + ext;
+  const path = s.user.id + '/' + filename;
+
+  const r = await db.storage
+    .from('agrilink-images')
+    .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+
+  if (r.error) throw r.error;
+
+  const { data } = db.storage.from('agrilink-images').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 // ---------- Auth ----------
 async function signUp({ email, password, full_name, phone, county, role }) {
   const r = await db.auth.signUp({
     email,
     password,
-    options: {
-      data: { full_name, phone }
-    }
+    options: { data: { full_name, phone } }
   });
   if (r.error) throw r.error;
 
-  // Ensure profile row exists with full details
   if (r.data && r.data.user) {
     const uid = r.data.user.id;
     const { data: existing } = await db
-      .from('profiles')
-      .select('id')
-      .eq('id', uid)
-      .maybeSingle();
+      .from('profiles').select('id').eq('id', uid).maybeSingle();
 
     const profileData = {
-      id: uid,
-      full_name,
-      phone,
-      email,
+      id: uid, full_name, phone, email,
       county: county || null,
       country: 'Kenya',
       roles: [role || 'farmer'],
-      is_active: true,
-      is_blocked: false,
-      is_verified: false
+      is_active: true, is_blocked: false, is_verified: false
     };
 
     if (existing) {
       await db.from('profiles').update(profileData).eq('id', uid);
     } else {
       const ins = await db.from('profiles').insert(profileData);
-      if (ins.error) {
-        console.error('Profile insert error:', ins.error);
-      }
+      if (ins.error) console.error('Profile insert error:', ins.error);
     }
   }
   return r.data;
@@ -73,21 +81,14 @@ async function getSession() {
 
 async function requireAuth() {
   const s = await getSession();
-  if (!s) {
-    window.location.href = 'login.html';
-    return null;
-  }
+  if (!s) { window.location.href = 'login.html'; return null; }
   return s;
 }
 
 async function getMyProfile() {
   const s = await getSession();
   if (!s) return null;
-  const r = await db
-    .from('profiles')
-    .select('*')
-    .eq('id', s.user.id)
-    .maybeSingle();
+  const r = await db.from('profiles').select('*').eq('id', s.user.id).maybeSingle();
   if (r.error) throw r.error;
   return r.data;
 }
@@ -96,7 +97,7 @@ async function getMyProfile() {
 async function getPublicProducts() {
   const r = await db
     .from('products')
-    .select('id, title, category, price, currency, quantity, unit, county, location, country, status, is_featured, created_at, seller_id, seller_name, seller_phone, image_url')
+    .select('id, title, description, category, price, currency, quantity, unit, county, location, country, status, is_featured, created_at, seller_id, seller_name, seller_phone, image_url')
     .eq('status', 'active')
     .order('is_featured', { ascending: false })
     .order('created_at', { ascending: false });
@@ -115,11 +116,11 @@ async function getPublicSettings() {
   if (r.error) throw r.error;
   return r.data;
 }
+
+// ---------- Create product ----------
 async function createProduct(data) {
   const s = await getSession();
   if (!s) throw new Error('You must be logged in.');
-
-  // Grab seller info from their profile
   const profile = await getMyProfile();
   if (!profile) throw new Error('Profile not found.');
 
@@ -138,6 +139,7 @@ async function createProduct(data) {
   if (r.error) throw r.error;
   return r.data;
 }
+
 // ---------- My products ----------
 async function getMyProducts() {
   const s = await getSession();
@@ -154,11 +156,7 @@ async function getMyProducts() {
 async function deleteMyProduct(id) {
   const s = await getSession();
   if (!s) throw new Error('Not signed in');
-  const r = await db
-    .from('products')
-    .delete()
-    .eq('id', id)
-    .eq('seller_id', s.user.id);
+  const r = await db.from('products').delete().eq('id', id).eq('seller_id', s.user.id);
   if (r.error) throw r.error;
   return true;
 }
@@ -169,22 +167,19 @@ async function markMyProductSold(id) {
   const r = await db
     .from('products')
     .update({ status: 'sold', updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .eq('seller_id', s.user.id)
-    .select();
+    .eq('id', id).eq('seller_id', s.user.id).select();
   if (r.error) throw r.error;
   if (!r.data || r.data.length === 0) throw new Error('Update blocked');
   return r.data[0];
 }
+
 // ---------- Reports ----------
 async function createReport({ target_type, target_id, reason, details }) {
   const s = await getSession();
   if (!s) throw new Error('You must be logged in to report.');
   const row = {
     reporter_id: s.user.id,
-    target_type: target_type,
-    target_id: target_id,
-    reason: reason,
+    target_type, target_id, reason,
     details: details || null,
     status: 'open'
   };
@@ -192,6 +187,7 @@ async function createReport({ target_type, target_id, reason, details }) {
   if (r.error) throw r.error;
   return r.data;
 }
+
 // ---------- Ads (public) ----------
 async function getActiveAds(position) {
   const r = await db
