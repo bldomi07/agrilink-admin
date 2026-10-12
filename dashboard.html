@@ -23,6 +23,7 @@
       <button class="tile" data-view="profiles">👤 Profiles</button>
       <button class="tile" data-view="products">📦 Products</button>
       <button class="tile" data-view="reports">🚩 Reports</button>
+      <button class="tile" data-view="ads">📣 Ads</button>
     </div>
 
     <div id="view" class="view"></div>
@@ -51,6 +52,7 @@
         if (name === 'profiles') return renderProfiles(view);
         if (name === 'products') return renderProducts(view);
         if (name === 'reports')  return renderReports(view);
+        if (name === 'ads')      return renderAds(view);
       } catch (err) {
         view.innerHTML = '<p class="msg">' + escapeHtml(err.message) + '</p>';
       }
@@ -202,7 +204,7 @@
               <span class="badge">${escapeHtml(p.status || 'active')}</span>
               ${p.is_featured ? '<span class="badge badge-ok">featured</span>' : ''}
             </div>
-            <div class="small">${price} · ${p.quantity} ${escapeHtml(p.unit || '')}</div>
+            <div class="small">${escapeHtml(price)} · ${p.quantity} ${escapeHtml(p.unit || '')}</div>
             <div class="small">Seller: ${escapeHtml(p.seller_name || '—')} ${escapeHtml(p.seller_phone || '')}</div>
             <div class="small">Location: ${escapeHtml(place)} · Category: ${escapeHtml(p.category || '—')}</div>
             <div class="profile-actions">
@@ -296,6 +298,123 @@
       });
     }
 
+    // ---------------- ADS ----------------
+    async function renderAds(view) {
+      const ads = await getAds();
+      let html = '<h2>Advertisements</h2>';
+
+      html += `
+        <details style="margin-bottom:12px;">
+          <summary style="cursor:pointer; font-weight:600; color:#1e7a3c;">+ Create new ad</summary>
+          <form id="adCreateForm" style="margin-top:10px;">
+            <label>Title</label>
+            <input id="ad_title" required placeholder="e.g. Fresh Harvest Season!">
+
+            <label>Description</label>
+            <input id="ad_description" placeholder="Optional short line">
+
+            <label>Image URL (leave blank for a colored card)</label>
+            <input id="ad_image_url" type="url" placeholder="https://…">
+
+            <label>Link URL (where it opens when tapped)</label>
+            <input id="ad_link_url" type="url" placeholder="https://…">
+
+            <label>Position</label>
+            <select id="ad_position">
+              <option value="home_top">Home — top</option>
+              <option value="home_middle">Home — middle</option>
+              <option value="home_bottom">Home — bottom</option>
+            </select>
+
+            <label>Sort order (lower = first)</label>
+            <input id="ad_sort_order" type="number" value="0">
+
+            <button type="submit" id="adCreateBtn">Create ad</button>
+            <p id="adCreateMsg" class="small"></p>
+          </form>
+        </details>
+      `;
+
+      if (!ads || ads.length === 0) {
+        html += '<p class="small">No advertisements yet.</p>';
+        view.innerHTML = html;
+        attachAdCreate(view);
+        return;
+      }
+
+      ads.forEach(a => {
+        html += `
+          <div class="profile-card">
+            <div class="profile-head">
+              <strong>${escapeHtml(a.title || '(untitled)')}</strong>
+              <span class="badge">${escapeHtml(a.position)}</span>
+              ${a.is_active ? '<span class="badge badge-ok">active</span>' : '<span class="badge badge-warn">inactive</span>'}
+            </div>
+            ${a.description ? '<div class="small">' + escapeHtml(a.description) + '</div>' : ''}
+            ${a.image_url ? '<div class="small">Image: ' + escapeHtml(a.image_url) + '</div>' : ''}
+            ${a.link_url ? '<div class="small">Link: ' + escapeHtml(a.link_url) + '</div>' : ''}
+            <div class="small">Sort: ${a.sort_order ?? 0}</div>
+            <div class="profile-actions">
+              <button class="btn-sm" data-ad-action="toggle" data-id="${a.id}" data-value="${!a.is_active}">
+                ${a.is_active ? 'Deactivate' : 'Activate'}
+              </button>
+              <button class="btn-sm btn-danger" data-ad-action="delete" data-id="${a.id}">Delete</button>
+            </div>
+          </div>
+        `;
+      });
+
+      view.innerHTML = html;
+
+      view.querySelectorAll('button[data-ad-action]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const action = btn.dataset.adAction;
+          const value = btn.dataset.value === 'true';
+          btn.disabled = true; btn.textContent = '…';
+          try {
+            if (action === 'toggle') await updateAd(id, { is_active: value });
+            if (action === 'delete') {
+              if (!confirm('Delete this ad?')) { btn.disabled = false; return renderAds(view); }
+              await deleteAd(id);
+            }
+            await renderAds(view);
+          } catch (err) {
+            alert('Error: ' + (err.message || 'Failed'));
+            btn.disabled = false;
+          }
+        });
+      });
+
+      attachAdCreate(view);
+    }
+
+    function attachAdCreate(view) {
+      const form = view.querySelector('#adCreateForm');
+      if (!form) return;
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = view.querySelector('#adCreateMsg');
+        const btn = view.querySelector('#adCreateBtn');
+        msg.textContent = 'Creating…'; btn.disabled = true;
+        try {
+          await createAd({
+            title: document.getElementById('ad_title').value.trim(),
+            description: document.getElementById('ad_description').value.trim() || null,
+            image_url: document.getElementById('ad_image_url').value.trim() || null,
+            link_url: document.getElementById('ad_link_url').value.trim() || null,
+            position: document.getElementById('ad_position').value,
+            sort_order: Number(document.getElementById('ad_sort_order').value) || 0,
+            is_active: true
+          });
+          await renderAds(view);
+        } catch (err) {
+          msg.textContent = '❌ ' + (err.message || 'Failed');
+          btn.disabled = false;
+        }
+      });
+    }
+
     // ---------------- helpers ----------------
     function tableFromRows(rows) {
       if (!rows || rows.length === 0) return '<p class="small">No rows.</p>';
@@ -318,7 +437,7 @@
     }
 
     function escapeHtml(str) {
-      return String(str)
+      return String(str == null ? '' : str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
