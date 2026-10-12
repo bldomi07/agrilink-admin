@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgriLink — Buy & Sell Farm Produce in Kenya</title>
+  <meta name="description" content="AgriLink — Kenya's marketplace for farmers, buyers and sellers. Fresh produce, fair prices, direct from the farm." />
+  <link rel="stylesheet" href="app.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚜</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="logo">
+      <span class="logo-icon">🚜</span>
+      <span class="logo-text">AgriLink</span>
+    </div>
+    <a href="../index.html" class="login-btn">Log in</a>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-type="product">Products</button>
+    <button class="tab" disabled>Services<small>soon</small></button>
+    <button class="tab" disabled>Jobs<small>soon</small></button>
+    <button class="tab" disabled>Machinery<small>soon</small></button>
+    <button class="tab" disabled>Farms<small>soon</small></button>
+  </nav>
+
+  <main id="content">
+    <p class="loading">Loading products…</p>
+  </main>
+
+  <footer class="app-footer">
+    <p>© AgriLink — Kenya</p>
+  </footer>
+
+  <script src="supabase.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', load);
+
+    async function load() {
+      const content = document.getElementById('content');
+      try {
+        const products = await getPublicProducts();
+        if (!products || products.length === 0) {
+          content.innerHTML = '<div class="empty">No products yet.<br>Check back soon!</div>';
+          return;
+        }
+        content.innerHTML = '<div class="grid">' +
+          products.map(cardHtml).join('') +
+          '</div>';
+      } catch (err) {
+        content.innerHTML = '<div class="error">Failed to load: ' + escapeHtml(err.message) + '</div>';
+      }
+    }
+
+    function cardHtml(p) {
+      const img = p.image_url
+        ? '<img src="' + escapeHtml(p.image_url) + '" alt="' + escapeHtml(p.title || '') + '" loading="lazy">'
+        : '<div class="placeholder">🌾</div>';
+
+      const featured = p.is_featured ? '<span class="badge-featured">Featured</span>' : '';
+
+      const price = (p.currency || 'KES') + ' ' +
+        Number(p.price || 0).toLocaleString();
+
+      const unit = p.unit ? ' / ' + escapeHtml(p.unit) : '';
+
+      const place = [p.location, p.county].filter(Boolean).join(', ');
+
+      return '<a class="card" href="product.html?id=' + encodeURIComponent(p.id) + '">' +
+          '<div class="card-img">' + img + featured + '</div>' +
+          '<div class="card-body">' +
+            '<div class="card-title">' + escapeHtml(p.title || '(untitled)') + '</div>' +
+            '<div class="card-price">' + escapeHtml(price) + unit + '</div>' +
+            '<div class="card-place">' + escapeHtml(place) + '</div>' +
+          '</div>' +
+        '</a>';
+    }
+
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
