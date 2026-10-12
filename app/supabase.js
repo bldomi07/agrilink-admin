@@ -192,3 +192,15 @@ async function createReport({ target_type, target_id, reason, details }) {
   if (r.error) throw r.error;
   return r.data;
 }
+// ---------- Ads (public) ----------
+async function getActiveAds(position) {
+  const r = await db
+    .from('advertisements')
+    .select('id, title, description, image_url, link_url, position, sort_order')
+    .eq('is_active', true)
+    .eq('position', position || 'home_top')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: false });
+  if (r.error) throw r.error;
+  return r.data;
+}
