@@ -138,3 +138,41 @@ async function createProduct(data) {
   if (r.error) throw r.error;
   return r.data;
 }
+// ---------- My products ----------
+async function getMyProducts() {
+  const s = await getSession();
+  if (!s) throw new Error('Not signed in');
+  const r = await db
+    .from('products')
+    .select('id, title, category, price, currency, quantity, unit, county, location, status, is_featured, image_url, created_at')
+    .eq('seller_id', s.user.id)
+    .order('created_at', { ascending: false });
+  if (r.error) throw r.error;
+  return r.data;
+}
+
+async function deleteMyProduct(id) {
+  const s = await getSession();
+  if (!s) throw new Error('Not signed in');
+  const r = await db
+    .from('products')
+    .delete()
+    .eq('id', id)
+    .eq('seller_id', s.user.id);
+  if (r.error) throw r.error;
+  return true;
+}
+
+async function markMyProductSold(id) {
+  const s = await getSession();
+  if (!s) throw new Error('Not signed in');
+  const r = await db
+    .from('products')
+    .update({ status: 'sold', updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('seller_id', s.user.id)
+    .select();
+  if (r.error) throw r.error;
+  if (!r.data || r.data.length === 0) throw new Error('Update blocked');
+  return r.data[0];
+}
