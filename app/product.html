@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product — AgriLink</title>
+  <link rel="stylesheet" href="app.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚜</text></svg>">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { padding-bottom: 100px; }
+    .back-bar {
+      padding: 10px 14px;
+      background: #fff;
+      border-bottom: 1px solid #e6ece8;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .back-bar a {
+      text-decoration: none;
+      color: #1e7a3c;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .hero {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #eef3ef;
+      overflow: hidden;
+    }
+    .hero img {
+      width: 100%; height: 100%;
+      object-fit: cover; display: block;
+    }
+    .hero .placeholder {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 100px; color: #a8bfb0;
+    }
+    .info {
+      background: #fff;
+      padding: 16px;
+      border-bottom: 1px solid #e6ece8;
+    }
+    .title {
+      font-size: 22px; font-weight: 700;
+      margin: 0 0 6px 0; line-height: 1.2;
+    }
+    .price {
+      font-size: 24px; font-weight: 800;
+      color: #1e7a3c; margin: 8px 0;
+    }
+    .meta {
+      font-size: 14px; color: #555;
+      margin: 4px 0;
+    }
+    .meta strong { color: #1c1c1c; }
+    .badge-featured {
+      display: inline-block;
+      background: #f5a524; color: #fff;
+      font-size: 12px; font-weight: 700;
+      padding: 3px 10px; border-radius: 999px;
+      margin-bottom: 6px;
+    }
+    .section {
+      background: #fff;
+      padding: 16px;
+      margin-top: 10px;
+      border-top: 1px solid #e6ece8;
+      border-bottom: 1px solid #e6ece8;
+    }
+    .section h3 {
+      font-size: 13px; font-weight: 700;
+      color: #666; text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 0 0 8px 0;
+    }
+    .section p { margin: 0; line-height: 1.5; color: #333; font-size: 15px; }
+    .seller-name {
+      font-size: 16px; font-weight: 600; color: #1c1c1c;
+    }
+    .contact-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      display: flex; gap: 8px;
+      padding: 12px;
+      background: #fff;
+      border-top: 1px solid #e6ece8;
+      max-width: 720px;
+      margin: 0 auto;
+      z-index: 20;
+    }
+    .contact-bar a {
+      flex: 1;
+      text-align: center;
+      text-decoration: none;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-call { background: #1e7a3c; color: #fff; }
+    .btn-wa   { background: #25d366; color: #fff; }
+    .btn-disabled {
+      flex: 1; text-align: center;
+      padding: 14px; font-size: 15px; font-weight: 700;
+      background: #eee; color: #999;
+      border-radius: 10px;
+    }
+    .loading, .empty, .error {
+      text-align: center; padding: 60px 20px;
+      color: #777; font-size: 14px;
+    }
+    .error { color: #b00020; }
+  </style>
+</head>
+<body>
+
+  <div class="back-bar">
+    <a href="index.html">← Back to products</a>
+  </div>
+
+  <main id="content">
+    <p class="loading">Loading…</p>
+  </main>
+
+  <script src="supabase.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', load);
+
+    async function load() {
+      const content = document.getElementById('content');
+
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+
+      if (!id) {
+        content.innerHTML = '<div class="error">No product specified.</div>';
+        return;
+      }
+
+      try {
+        const p = await getPublicProduct(id);
+        if (!p) {
+          content.innerHTML = '<div class="error">Product not found.</div>';
+          return;
+        }
+        if (p.status === 'blocked') {
+          content.innerHTML = '<div class="error">This listing is no longer available.</div>';
+          return;
+        }
+
+        document.title = (p.title || 'Product') + ' — AgriLink';
+        content.innerHTML = render(p);
+      } catch (err) {
+        content.innerHTML = '<div class="error">Failed to load: ' + escapeHtml(err.message) + '</div>';
+      }
+    }
+
+    function render(p) {
+      const img = p.image_url
+        ? '<img src="' + escapeHtml(p.image_url) + '" alt="' + escapeHtml(p.title || '') + '">'
+        : '<div class="placeholder">🌾</div>';
+
+      const featured = p.is_featured ? '<div class="badge-featured">⭐ Featured</div>' : '';
+
+      const price = (p.currency || 'KES') + ' ' + Number(p.price || 0).toLocaleString();
+      const unit = p.unit ? ' / ' + escapeHtml(p.unit) : '';
+
+      const quantity = p.quantity
+        ? '<p class="meta">Available: <strong>' + escapeHtml(p.quantity) + ' ' + escapeHtml(p.unit || '') + '</strong></p>'
+        : '';
+
+      const place = [p.location, p.county, p.country].filter(Boolean).join(', ');
+
+      const category = p.category
+        ? '<p class="meta">Category: <strong>' + escapeHtml(p.category) + '</strong></p>'
+        : '';
+
+      const sellerName = p.seller_name ? escapeHtml(p.seller_name) : 'AgriLink Seller';
+      const phoneRaw = (p.seller_phone || '').replace(/[^0-9]/g, '');
+
+      let contactHtml = '';
+      if (phoneRaw) {
+        const waText = encodeURIComponent('Hi, I saw your listing "' + (p.title || '') + '" on AgriLink. Is it still available?');
+        contactHtml = `
+          <div class="contact-bar">
+            <a class="btn-call" href="tel:+${escapeHtml(phoneRaw)}">📞 Call</a>
+            <a class="btn-wa" href="https://wa.me/${escapeHtml(phoneRaw)}?text=${waText}" target="_blank" rel="noopener">💬 WhatsApp</a>
+          </div>
+        `;
+      } else {
+        contactHtml = `
+          <div class="contact-bar">
+            <div class="btn-disabled">Contact unavailable</div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="hero">${img}</div>
+
+        <div class="info">
+          ${featured}
+          <h1 class="title">${escapeHtml(p.title || '(untitled)')}</h1>
+          <div class="price">${escapeHtml(price)}${unit}</div>
+          ${quantity}
+          <p class="meta">Location: <strong>${escapeHtml(place || '—')}</strong></p>
+          ${category}
+        </div>
+
+        ${p.description ? `
+          <div class="section">
+            <h3>Description</h3>
+            <p>${escapeHtml(p.description)}</p>
+          </div>
+        ` : ''}
+
+        <div class="section">
+          <h3>Seller</h3>
+          <p class="seller-name">${sellerName}</p>
+          ${p.seller_phone ? '<p class="meta">' + escapeHtml(p.seller_phone) + '</p>' : ''}
+        </div>
+
+        ${contactHtml}
+      `;
+    }
+
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
