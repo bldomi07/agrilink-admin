@@ -176,3 +176,19 @@ async function markMyProductSold(id) {
   if (!r.data || r.data.length === 0) throw new Error('Update blocked');
   return r.data[0];
 }
+// ---------- Reports ----------
+async function createReport({ target_type, target_id, reason, details }) {
+  const s = await getSession();
+  if (!s) throw new Error('You must be logged in to report.');
+  const row = {
+    reporter_id: s.user.id,
+    target_type: target_type,
+    target_id: target_id,
+    reason: reason,
+    details: details || null,
+    status: 'open'
+  };
+  const r = await db.from('reports').insert(row).select().single();
+  if (r.error) throw r.error;
+  return r.data;
+}
