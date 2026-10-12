@@ -174,3 +174,8 @@ label.check input {
 .badge-warn{ background: #fff4d6; color: #7a4d00; }
 .tile { min-height: 80px; }
 .profile-card { background: #fff; }
+.grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.tile { min-height: 72px; font-size: 14px; }
