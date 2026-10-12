@@ -57,36 +57,3 @@
   </script>
 </body>
 </html>
-// ---------- Advertisements (admin) ----------
-async function getAds() {
-  const r = await db
-    .from('advertisements')
-    .select('*')
-    .order('position', { ascending: true })
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: false });
-  if (r.error) throw r.error;
-  return r.data;
-}
-
-async function updateAd(id, updates) {
-  const r = await db
-    .from('advertisements')
-    .update(updates)
-    .eq('id', id)
-    .select();
-  if (r.error) throw r.error;
-  if (!r.data || r.data.length === 0) throw new Error('Update blocked by RLS');
-  return r.data[0];
-}
-
-async function deleteAd(id) {
-  const r = await db.from('advertisements').delete().eq('id', id);
-  if (r.error) throw r.error;
-}
-
-async function createAd(data) {
-  const r = await db.from('advertisements').insert(data).select().single();
-  if (r.error) throw r.error;
-  return r.data;
-}
