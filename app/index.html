@@ -16,7 +16,10 @@
       <span class="logo-icon">🚜</span>
       <span class="logo-text">AgriLink</span>
     </div>
-    <a href="login.html" class="login-btn" id="authLink">Log in</a>
+    <div style="display:flex; gap:6px;">
+      <a href="sell.html" class="login-btn" id="sellLink" style="display:none; background:#1e7a3c; color:#fff; border-color:#1e7a3c;">+ Sell</a>
+      <a href="login.html" class="login-btn" id="authLink">Log in</a>
+    </div>
   </header>
 
   <nav class="tabs">
@@ -40,16 +43,18 @@
     document.addEventListener('DOMContentLoaded', init);
 
     async function init() {
-      // Update header link based on login state
+      // Update header based on login state
       try {
         const session = await getSession();
-        const link = document.getElementById('authLink');
+        const authLink = document.getElementById('authLink');
+        const sellLink = document.getElementById('sellLink');
         if (session) {
-          link.textContent = 'My account';
-          link.href = 'me.html';
+          authLink.textContent = 'My account';
+          authLink.href = 'me.html';
+          if (sellLink) sellLink.style.display = '';
         } else {
-          link.textContent = 'Log in';
-          link.href = 'login.html';
+          authLink.textContent = 'Log in';
+          authLink.href = 'login.html';
         }
       } catch (e) {
         // Ignore — default is fine
@@ -93,7 +98,7 @@
           '<div class="card-body">' +
             '<div class="card-title">' + escapeHtml(p.title || '(untitled)') + '</div>' +
             '<div class="card-price">' + escapeHtml(price) + unit + '</div>' +
-            '<div class="card-place">' + escapeHtml(place) + '</div>' +
+            '<div class="card-place">' + escapeHtml(p.place || place) + '</div>' +
           '</div>' +
         '</a>';
     }
