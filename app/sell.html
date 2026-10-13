@@ -5,56 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Post a product — AgriLink</title>
   <link rel="stylesheet" href="app.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚜</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e7a3c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="AgriLink">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .wrap { max-width: 500px; margin: 12px auto; padding: 16px; background: #fff; border-radius: 14px; }
     .wrap h1 { font-size: 22px; color: #1e7a3c; margin: 0 0 4px; }
     .wrap p.sub { color: #666; font-size: 14px; margin: 0 0 16px; }
     label { display: block; margin-top: 14px; font-size: 13px; color: #333; font-weight: 600; }
-    input, select, textarea {
-      width: 100%; padding: 12px; font-size: 16px; margin-top: 6px;
-      border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb;
-      font-family: inherit;
-    }
+    input, select, textarea { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; font-family: inherit; }
     textarea { resize: vertical; min-height: 80px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .photo-box {
-      margin-top: 6px;
-      border: 2px dashed #cfd8d2;
-      border-radius: 12px;
-      padding: 16px;
-      text-align: center;
-      background: #fbfdfb;
-      cursor: pointer;
-    }
+    .photo-box { margin-top: 6px; border: 2px dashed #cfd8d2; border-radius: 12px; padding: 16px; text-align: center; background: #fbfdfb; cursor: pointer; }
     .photo-box:active { background: #f1f5f2; }
-    .photo-preview {
-      width: 100%;
-      aspect-ratio: 1 / 1;
-      border-radius: 10px;
-      background: #eef3ef;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 50px; color: #a8bfb0;
-      overflow: hidden;
-      position: relative;
-    }
+    .photo-preview { width: 100%; aspect-ratio: 1 / 1; border-radius: 10px; background: #eef3ef; display: flex; align-items: center; justify-content: center; font-size: 50px; color: #a8bfb0; overflow: hidden; }
     .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
     .photo-box input[type=file] { display: none; }
     .photo-hint { font-size: 12px; color: #777; margin-top: 6px; }
-    .photo-remove {
-      display: none;
-      margin-top: 8px;
-      background: none; border: 0;
-      color: #b00020; font-size: 13px;
-      text-decoration: underline; cursor: pointer;
-    }
+    .photo-remove { display: none; margin-top: 8px; background: none; border: 0; color: #b00020; font-size: 13px; text-decoration: underline; cursor: pointer; }
     .photo-remove.show { display: inline-block; }
-    button.primary {
-      width: 100%; margin-top: 20px; padding: 14px;
-      font-size: 16px; font-weight: 700; color: #fff;
-      background: #1e7a3c; border: 0; border-radius: 10px; cursor: pointer;
-    }
+    button.primary { width: 100%; margin-top: 20px; padding: 14px; font-size: 16px; font-weight: 700; color: #fff; background: #1e7a3c; border: 0; border-radius: 10px; cursor: pointer; }
     button.primary:disabled { opacity: 0.6; }
     .msg { margin-top: 12px; font-size: 14px; }
     .msg.error { color: #b00020; }
@@ -158,8 +133,7 @@
         if (!file) return;
         selectedFile = file;
         const url = URL.createObjectURL(file);
-        document.getElementById('photoPreview').innerHTML =
-          '<img src="' + url + '" alt="preview">';
+        document.getElementById('photoPreview').innerHTML = '<img src="' + url + '" alt="preview">';
         document.getElementById('photoRemove').classList.add('show');
       });
 
@@ -177,14 +151,11 @@
       e.preventDefault();
       const msg = document.getElementById('msg');
       const btn = document.getElementById('submitBtn');
-      msg.className = 'msg';
-      msg.textContent = '';
-      btn.disabled = true;
-      btn.textContent = 'Posting…';
+      msg.className = 'msg'; msg.textContent = '';
+      btn.disabled = true; btn.textContent = 'Posting…';
 
       try {
         let image_url = existingImageUrl;
-
         if (selectedFile) {
           btn.textContent = 'Uploading photo…';
           image_url = await uploadImage(selectedFile, 'product');
@@ -206,15 +177,12 @@
         const created = await createProduct(payload);
         msg.className = 'msg ok';
         msg.textContent = '✅ Product posted! Redirecting…';
-        setTimeout(() => {
-          window.location.href = 'product.html?id=' + created.id;
-        }, 800);
+        setTimeout(() => { window.location.href = 'product.html?id=' + created.id; }, 800);
       } catch (err) {
         msg.className = 'msg error';
         msg.textContent = err.message || 'Failed to post.';
       } finally {
-        btn.disabled = false;
-        btn.textContent = 'Post product';
+        btn.disabled = false; btn.textContent = 'Post product';
       }
     }
   </script>
