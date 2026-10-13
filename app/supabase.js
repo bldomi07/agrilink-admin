@@ -229,7 +229,11 @@ async function getActiveAds(position) {
   if (r.error) throw r.error;
   return r.data;
 }
-
+async function requireLogin() {
+  const s = await getSession();
+  if (!s) { window.location.href = 'login.html'; return null; }
+  return s;
+}
 // Auto-load banner.js (keeps this file small so it pastes safely)
 (function loadBanner() {
   try {
