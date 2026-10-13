@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Post — AgriLink</title>
+  <link rel="stylesheet" href="app.css" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e7a3c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="AgriLink">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .wrap { max-width: 500px; margin: 12px auto; padding: 16px; background: #fff; border-radius: 14px; }
+    .wrap h1 { font-size: 22px; color: #1e7a3c; margin: 0 0 4px; }
+    .wrap p.sub { color: #666; font-size: 14px; margin: 0 0 16px; }
+    label { display: block; margin-top: 14px; font-size: 13px; color: #333; font-weight: 600; }
+    input, select, textarea { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; font-family: inherit; }
+    textarea { resize: vertical; min-height: 80px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .photo-box { margin-top: 6px; border: 2px dashed #cfd8d2; border-radius: 12px; padding: 16px; text-align: center; background: #fbfdfb; cursor: pointer; }
+    .photo-preview { width: 100%; aspect-ratio: 1/1; border-radius: 10px; background: #eef3ef; display: flex; align-items: center; justify-content: center; font-size: 50px; color: #a8bfb0; overflow: hidden; }
+    .photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-box input[type=file] { display: none; }
+    .photo-hint { font-size: 12px; color: #777; margin-top: 6px; }
+    .photo-remove { display: none; margin-top: 8px; background: none; border: 0; color: #b00020; font-size: 13px; text-decoration: underline; cursor: pointer; }
+    .photo-remove.show { display: inline-block; }
+    button.primary { width: 100%; margin-top: 20px; padding: 14px; font-size: 16px; font-weight: 700; color: #fff; background: #1e7a3c; border: 0; border-radius: 10px; cursor: pointer; }
+    button.primary:disabled { opacity: 0.6; }
+    .msg { margin-top: 12px; font-size: 14px; }
+    .msg.error { color: #b00020; }
+    .msg.ok    { color: #146c34; }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="logo">
+      <span class="logo-icon">🚜</span>
+      <span class="logo-text">AgriLink</span>
+    </div>
+    <a href="index.html" class="login-btn">Browse</a>
+  </header>
+
+  <div class="wrap">
+    <h1>Post a listing</h1>
+    <p class="sub">Products, services, jobs, machinery, land</p>
+
+    <form id="postForm">
+      <label>What are you posting?</label>
+      <select id="type" required>
+        <option value="product">Product — for sale</option>
+        <option value="service">Service — I offer a service</option>
+        <option value="job">Job — I'm offering work</option>
+        <option value="machinery">Machinery — for sale / hire</option>
+        <option value="farm">Farm / land — for sale / lease</option>
+      </select>
+
+      <label>Photo</label>
+      <div class="photo-box" id="photoBox">
+        <div class="photo-preview" id="photoPreview">📷</div>
+        <input type="file" id="photoInput" accept="image/*" capture="environment">
+        <div class="photo-hint">Tap to choose a photo or take one</div>
+      </div>
+      <button type="button" class="photo-remove" id="photoRemove">Remove photo</button>
+
+      <label>Title</label>
+      <input id="title" type="text" required placeholder="e.g. Fresh Maize — 90kg bag">
+
+      <label>Description</label>
+      <textarea id="description" placeholder="Details…"></textarea>
+
+      <div class="row">
+        <div>
+          <label>Price (KES)</label>
+          <input id="price" type="number" min="0" step="1" required>
+        </div>
+        <div>
+          <label>Unit</label>
+          <select id="unit">
+            <option value="unit">unit</option>
+            <option value="kg">kg</option>
+            <option value="bag">bag</option>
+            <option value="tonne">tonne</option>
+            <option value="litre">litre</option>
+            <option value="piece">piece</option>
+            <option value="acre">acre</option>
+            <option value="day">day</option>
+            <option value="hour">hour</option>
+            <option value="month">month</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Quantity</label>
+          <input id="quantity" type="number" min="1" step="1" value="1" required>
+        </div>
+        <div>
+          <label>County</label>
+          <input id="county" type="text" placeholder="e.g. Nakuru">
+        </div>
+      </div>
+
+      <label>Town / area</label>
+      <input id="location" type="text" placeholder="e.g. Kitale">
+
+      <button type="submit" class="primary" id="submitBtn">Publish</button>
+      <p class="msg" id="msg"></p>
+    </form>
+  </div>
+
+  <script src="supabase.js"></script>
+  <script>
+    let selectedFile = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const s = await getSession();
+      if (!s) { window.location.href = 'login.html'; return; }
+
+      document.getElementById('photoBox').addEventListener('click', () => {
+        document.getElementById('photoInput').click();
+      });
+      document.getElementById('photoInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        selectedFile = file;
+        document.getElementById('photoPreview').innerHTML = '<img src="' + URL.createObjectURL(file) + '" alt="">';
+        document.getElementById('photoRemove').classList.add('show');
+      });
+      document.getElementById('photoRemove').addEventListener('click', () => {
+        selectedFile = null;
+        document.getElementById('photoInput').value = '';
+        document.getElementById('photoPreview').innerHTML = '📷';
+        document.getElementById('photoRemove').classList.remove('show');
+      });
+
+      document.getElementById('postForm').addEventListener('submit', submit);
+    });
+
+    async function submit(e) {
+      e.preventDefault();
+      const msg = document.getElementById('msg');
+      const btn = document.getElementById('submitBtn');
+      msg.className = 'msg'; msg.textContent = '';
+      btn.disabled = true; btn.textContent = 'Publishing…';
+
+      try {
+        const type = document.getElementById('type').value;
+        const isProduct = (type === 'product');
+
+        let image_url = null;
+        if (selectedFile) {
+          btn.textContent = 'Uploading photo…';
+          image_url = await uploadImage(selectedFile, type);
+        }
+
+        btn.textContent = 'Publishing…';
+        const payload = {
+          title:       document.getElementById('title').value.trim(),
+          description: document.getElementById('description').value.trim() || null,
+          price:       Number(document.getElementById('price').value) || 0,
+          unit:        document.getElementById('unit').value,
+          quantity:    Number(document.getElementById('quantity').value) || 1,
+          county:      document.getElementById('county').value.trim() || null,
+          location:    document.getElementById('location').value.trim() || null,
+          image_url:   image_url
+        };
+
+        let created;
+        if (isProduct) {
+          created = await createProduct(payload);
+          window.location.href = 'product.html?id=' + created.id;
+        } else {
+          payload.type = type;
+          created = await createListing(payload);
+          window.location.href = 'listing.html?id=' + created.id + '&type=' + type;
+        }
+      } catch (err) {
+        msg.className = 'msg error';
+        msg.textContent = err.message || 'Failed to publish.';
+        btn.disabled = false; btn.textContent = 'Publish';
+      }
+    }
+  </script>
+</body>
+</html>
