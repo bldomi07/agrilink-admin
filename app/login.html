@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Log in — AgriLink</title>
+  <title>Sign up — AgriLink</title>
   <link rel="stylesheet" href="app.css" />
   <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="apple-touch-icon" href="icon.svg">
@@ -17,10 +17,12 @@
     .auth-wrap h1 { font-size: 24px; color: #1e7a3c; margin: 0 0 4px; }
     .auth-wrap p.sub { color: #666; font-size: 14px; margin: 0 0 20px; }
     label { display: block; margin-top: 14px; font-size: 13px; color: #333; }
-    input { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; }
+    input, select { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; }
     button.primary { width: 100%; margin-top: 20px; padding: 14px; font-size: 16px; font-weight: 700; color: #fff; background: #1e7a3c; border: 0; border-radius: 10px; cursor: pointer; }
     button.primary:disabled { opacity: 0.6; }
-    .msg { margin-top: 12px; font-size: 14px; color: #b00020; }
+    .msg { margin-top: 12px; font-size: 14px; }
+    .msg.error { color: #b00020; }
+    .msg.ok    { color: #146c34; }
     .switch { text-align: center; margin-top: 18px; font-size: 14px; color: #666; }
     .switch a { color: #1e7a3c; font-weight: 600; text-decoration: none; }
   </style>
@@ -32,47 +34,64 @@
       <span class="logo-icon">🚜</span>
       <span class="logo-text">AgriLink</span>
     </div>
-    <a href="signup.html" class="login-btn">Sign up</a>
+    <a href="login.html" class="login-btn">Log in</a>
   </header>
 
   <div class="auth-wrap">
-    <h1>Welcome back</h1>
-    <p class="sub">Log in to browse and manage your listings</p>
+    <h1>Join AgriLink</h1>
+    <p class="sub">Create your free account in seconds</p>
 
-    <form id="loginForm">
+    <form id="signupForm">
+      <label>Full name</label>
+      <input id="full_name" type="text" required>
+      <label>Phone</label>
+      <input id="phone" type="tel" required placeholder="+254712345678">
       <label>Email</label>
-      <input id="email" type="email" required autocomplete="username">
+      <input id="email" type="email" required>
+      <label>County</label>
+      <input id="county" type="text" placeholder="e.g. Nakuru">
+      <label>I am a…</label>
+      <select id="role">
+        <option value="farmer">Farmer</option>
+        <option value="buyer">Buyer</option>
+        <option value="seller">Seller</option>
+        <option value="service_provider">Service provider</option>
+      </select>
       <label>Password</label>
-      <input id="password" type="password" required autocomplete="current-password">
-      <button type="submit" class="primary" id="submitBtn">Log in</button>
+      <input id="password" type="password" required minlength="6">
+      <button type="submit" class="primary" id="submitBtn">Create account</button>
       <p class="msg" id="msg"></p>
     </form>
 
-    <p class="switch">Don't have an account? <a href="signup.html">Sign up</a></p>
+    <p class="switch">Already have an account? <a href="login.html">Log in</a></p>
   </div>
 
   <script src="supabase.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-      // If already logged in, go straight to the app
-      const s = await getSession();
-      if (s) window.location.href = 'index.html';
-    });
-
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const msg = document.getElementById('msg');
       const btn = document.getElementById('submitBtn');
-      msg.textContent = ''; btn.disabled = true; btn.textContent = 'Logging in…';
+      msg.className = 'msg'; msg.textContent = '';
+      btn.disabled = true; btn.textContent = 'Creating account…';
       try {
-        const email = document.getElementById('email').value.trim();
-        const password = document.getElementById('password').value;
-        await login(email, password);
-        window.location.href = 'index.html';
+        const payload = {
+          full_name: document.getElementById('full_name').value.trim(),
+          phone:     document.getElementById('phone').value.trim(),
+          email:     document.getElementById('email').value.trim(),
+          county:    document.getElementById('county').value.trim(),
+          role:      document.getElementById('role').value,
+          password:  document.getElementById('password').value
+        };
+        await signUp(payload);
+        msg.className = 'msg ok';
+        msg.textContent = '✅ Account created. Redirecting to login…';
+        setTimeout(() => { window.location.href = 'login.html'; }, 1200);
       } catch (err) {
-        msg.textContent = err.message || 'Login failed.';
+        msg.className = 'msg error';
+        msg.textContent = err.message || 'Signup failed.';
       } finally {
-        btn.disabled = false; btn.textContent = 'Log in';
+        btn.disabled = false; btn.textContent = 'Create account';
       }
     });
   </script>
