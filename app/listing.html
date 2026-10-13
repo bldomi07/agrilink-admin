@@ -54,6 +54,10 @@
     document.addEventListener('DOMContentLoaded', load);
 
     async function load() {
+      // LOGIN REQUIRED
+      const sess = await requireLogin();
+      if (!sess) return;
+
       const content = document.getElementById('content');
       const params = new URLSearchParams(window.location.search);
       const id = params.get('id');
