@@ -5,78 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My account — AgriLink</title>
   <link rel="stylesheet" href="app.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚜</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e7a3c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="AgriLink">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .wrap { max-width: 640px; margin: 12px auto; padding: 0 12px; }
-    .card {
-      background: #fff;
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    }
+    .card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
     .who { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
     .who h1 { margin: 0 0 4px; font-size: 20px; color: #1c1c1c; }
     .who .meta { color: #666; font-size: 13px; margin: 2px 0; }
-    .logout-btn {
-      background: #fff; color: #b00020; border: 1px solid #b00020;
-      padding: 8px 12px; border-radius: 8px; font-size: 13px;
-      font-weight: 600; cursor: pointer;
-    }
-    .section-head {
-      display: flex; justify-content: space-between; align-items: center;
-      margin: 20px 4px 10px;
-    }
+    .logout-btn { background: #fff; color: #b00020; border: 1px solid #b00020; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; margin: 20px 4px 10px; }
     .section-head h2 { font-size: 16px; margin: 0; color: #1e7a3c; }
-    .btn-primary {
-      background: #1e7a3c; color: #fff; text-decoration: none;
-      padding: 8px 14px; border-radius: 8px; font-size: 13px;
-      font-weight: 700; border: 0; cursor: pointer;
-    }
-    .row {
-      display: flex; gap: 12px;
-      padding: 10px 0;
-      border-bottom: 1px solid #eee;
-    }
+    .btn-primary { background: #1e7a3c; color: #fff; text-decoration: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; border: 0; cursor: pointer; }
+    .row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #eee; }
     .row:last-child { border-bottom: 0; }
-    .row-img {
-      width: 68px; height: 68px;
-      border-radius: 10px;
-      background: #eef3ef;
-      flex-shrink: 0;
-      overflow: hidden;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 28px; color: #a8bfb0;
-    }
+    .row-img { width: 68px; height: 68px; border-radius: 10px; background: #eef3ef; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #a8bfb0; }
     .row-img img { width: 100%; height: 100%; object-fit: cover; }
     .row-body { flex: 1; min-width: 0; }
-    .row-title {
-      font-size: 15px; font-weight: 600;
-      margin: 0 0 2px;
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
+    .row-title { font-size: 15px; font-weight: 600; margin: 0 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .row-price { color: #1e7a3c; font-weight: 700; font-size: 14px; }
     .row-meta { color: #777; font-size: 12px; margin-top: 2px; }
-    .row-actions {
-      display: flex; gap: 6px;
-      margin-top: 8px; flex-wrap: wrap;
-    }
-    .row-actions a, .row-actions button {
-      font-size: 12px; padding: 6px 10px;
-      border-radius: 6px; cursor: pointer;
-      text-decoration: none;
-      border: 1px solid #1e7a3c; background: #fff; color: #1e7a3c;
-      font-weight: 600;
-    }
+    .row-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .row-actions a, .row-actions button { font-size: 12px; padding: 6px 10px; border-radius: 6px; cursor: pointer; text-decoration: none; border: 1px solid #1e7a3c; background: #fff; color: #1e7a3c; font-weight: 600; }
     .row-actions .danger { color: #b00020; border-color: #b00020; }
-    .status-badge {
-      display: inline-block;
-      padding: 2px 8px; border-radius: 999px;
-      font-size: 11px; font-weight: 700;
-      margin-left: 6px;
-      vertical-align: middle;
-    }
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
     .status-active { background: #d6f5e0; color: #146c34; }
     .status-sold   { background: #eee; color: #666; }
     .status-archived { background: #fef0d5; color: #7a4d00; }
@@ -108,14 +66,9 @@
       const content = document.getElementById('content');
       try {
         const session = await getSession();
-        if (!session) {
-          window.location.href = 'login.html';
-          return;
-        }
-
+        if (!session) { window.location.href = 'login.html'; return; }
         const profile = await getMyProfile();
         const products = await getMyProducts();
-
         content.innerHTML = renderPage(profile, session.user.email, products);
         attachHandlers();
       } catch (err) {
@@ -145,12 +98,10 @@
             <button class="logout-btn" id="logoutBtn">Log out</button>
           </div>
         </div>
-
         <div class="section-head">
           <h2>My listings</h2>
           <a class="btn-primary" href="sell.html">+ Post new</a>
         </div>
-
         <div class="card">${listings}</div>
       `;
     }
@@ -159,17 +110,12 @@
       const img = p.image_url
         ? '<img src="' + escapeHtml(p.image_url) + '" alt="" onerror="this.parentNode.innerHTML=\'🌾\'">'
         : '🌾';
-
       const price = (p.currency || 'KES') + ' ' + Number(p.price || 0).toLocaleString();
       const unit = p.unit ? ' / ' + escapeHtml(p.unit) : '';
       const place = [p.location, p.county].filter(Boolean).join(', ');
-
       const status = p.status || 'active';
       const statusBadge = '<span class="status-badge status-' + status + '">' + status + '</span>';
-
-      const soldBtn = status === 'active'
-        ? '<button data-action="sold" data-id="' + p.id + '">Mark sold</button>'
-        : '';
+      const soldBtn = status === 'active' ? '<button data-action="sold" data-id="' + p.id + '">Mark sold</button>' : '';
 
       return `
         <div class="row">
@@ -184,8 +130,7 @@
               <button class="danger" data-action="delete" data-id="${p.id}">Delete</button>
             </div>
           </div>
-        </div>
-      `;
+        </div>`;
     }
 
     function attachHandlers() {
@@ -199,13 +144,10 @@
           btn.disabled = true;
           const original = btn.textContent;
           btn.textContent = '…';
-
           try {
             if (action === 'delete') {
               if (!confirm('Delete this listing permanently?')) {
-                btn.disabled = false;
-                btn.textContent = original;
-                return;
+                btn.disabled = false; btn.textContent = original; return;
               }
               await deleteMyProduct(id);
             }
@@ -215,8 +157,7 @@
             await init();
           } catch (err) {
             alert('Error: ' + (err.message || 'Failed'));
-            btn.disabled = false;
-            btn.textContent = original;
+            btn.disabled = false; btn.textContent = original;
           }
         });
       });
@@ -224,10 +165,7 @@
 
     function escapeHtml(str) {
       return String(str == null ? '' : str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
   </script>
 </body>
