@@ -10,7 +10,6 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e7a3c">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="AgriLink">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -42,8 +41,7 @@
     .report-link:active { color: #b00020; }
     .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
     .overlay.show { display: flex; }
-    .sheet { width: 100%; max-width: 500px; background: #fff; border-radius: 16px 16px 0 0; padding: 20px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.2s ease; }
-    @keyframes slideUp { from { transform: translateY(20px); opacity: 0.8; } to { transform: translateY(0); opacity: 1; } }
+    .sheet { width: 100%; max-width: 500px; background: #fff; border-radius: 16px 16px 0 0; padding: 20px; max-height: 90vh; overflow-y: auto; }
     .sheet h2 { margin: 0 0 4px; font-size: 18px; color: #1c1c1c; }
     .sheet p.sub { margin: 0 0 16px; font-size: 13px; color: #666; }
     .sheet label { display: block; margin-top: 12px; font-size: 13px; font-weight: 600; color: #333; }
@@ -73,7 +71,6 @@
     <div class="sheet">
       <h2>Report this listing</h2>
       <p class="sub">Help keep AgriLink safe. Your report goes to our team.</p>
-
       <form id="reportForm">
         <label>Why are you reporting this?</label>
         <select id="reportReason" required>
@@ -85,10 +82,8 @@
           <option value="Duplicate listing">Duplicate listing</option>
           <option value="Other">Other</option>
         </select>
-
         <label>More details (optional)</label>
         <textarea id="reportDetails" placeholder="Tell us what's wrong…"></textarea>
-
         <div class="sheet-actions">
           <button type="button" class="btn-cancel" id="reportCancel">Cancel</button>
           <button type="submit" class="btn-submit" id="reportSubmit">Send report</button>
@@ -104,6 +99,10 @@
     document.addEventListener('DOMContentLoaded', load);
 
     async function load() {
+      // LOGIN REQUIRED
+      const sess = await requireLogin();
+      if (!sess) return;
+
       const content = document.getElementById('content');
       const params = new URLSearchParams(window.location.search);
       const id = params.get('id');
