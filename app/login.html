@@ -10,7 +10,6 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e7a3c">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="AgriLink">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -33,12 +32,12 @@
       <span class="logo-icon">🚜</span>
       <span class="logo-text">AgriLink</span>
     </div>
-    <a href="index.html" class="login-btn">Browse</a>
+    <a href="signup.html" class="login-btn">Sign up</a>
   </header>
 
   <div class="auth-wrap">
     <h1>Welcome back</h1>
-    <p class="sub">Log in to manage your listings</p>
+    <p class="sub">Log in to browse and manage your listings</p>
 
     <form id="loginForm">
       <label>Email</label>
@@ -54,6 +53,12 @@
 
   <script src="supabase.js"></script>
   <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      // If already logged in, go straight to the app
+      const s = await getSession();
+      if (s) window.location.href = 'index.html';
+    });
+
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const msg = document.getElementById('msg');
@@ -63,7 +68,7 @@
         const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value;
         await login(email, password);
-        window.location.href = 'me.html';
+        window.location.href = 'index.html';
       } catch (err) {
         msg.textContent = err.message || 'Login failed.';
       } finally {
