@@ -214,3 +214,28 @@ async function createAd(data) {
   if (r.error) throw r.error;
   return r.data;
   }
+// ---------- Listings (admin) ----------
+async function getAdminListings() {
+  const r = await db
+    .from('listings')
+    .select('id, type, title, category, price, currency, quantity, unit, county, location, status, is_featured, image_url, created_at, seller_id, seller_name, seller_phone')
+    .order('created_at', { ascending: false });
+  if (r.error) throw r.error;
+  return r.data;
+}
+
+async function updateListing(id, updates) {
+  const r = await db
+    .from('listings')
+    .update(Object.assign({}, updates, { updated_at: new Date().toISOString() }))
+    .eq('id', id)
+    .select();
+  if (r.error) throw r.error;
+  if (!r.data || r.data.length === 0) throw new Error('Update blocked by RLS');
+  return r.data[0];
+}
+
+async function deleteListing(id) {
+  const r = await db.from('listings').delete().eq('id', id);
+  if (r.error) throw r.error;
+}
