@@ -5,143 +5,52 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Product — AgriLink</title>
   <link rel="stylesheet" href="app.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚜</text></svg>">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e7a3c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="AgriLink">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { padding-bottom: 100px; }
-    .back-bar {
-      padding: 10px 14px;
-      background: #fff;
-      border-bottom: 1px solid #e6ece8;
-      position: sticky; top: 0; z-index: 10;
-    }
-    .back-bar a {
-      text-decoration: none;
-      color: #1e7a3c;
-      font-weight: 600;
-      font-size: 14px;
-    }
-    .hero {
-      width: 100%;
-      aspect-ratio: 1 / 1;
-      background: #eef3ef;
-      overflow: hidden;
-    }
+    .back-bar { padding: 10px 14px; background: #fff; border-bottom: 1px solid #e6ece8; position: sticky; top: 0; z-index: 10; }
+    .back-bar a { text-decoration: none; color: #1e7a3c; font-weight: 600; font-size: 14px; }
+    .hero { width: 100%; aspect-ratio: 1 / 1; background: #eef3ef; overflow: hidden; }
     .hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .hero .placeholder {
-      width: 100%; height: 100%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 100px; color: #a8bfb0;
-    }
-    .info {
-      background: #fff; padding: 16px;
-      border-bottom: 1px solid #e6ece8;
-    }
+    .hero .placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 100px; color: #a8bfb0; }
+    .info { background: #fff; padding: 16px; border-bottom: 1px solid #e6ece8; }
     .title { font-size: 22px; font-weight: 700; margin: 0 0 6px; line-height: 1.2; }
     .price { font-size: 24px; font-weight: 800; color: #1e7a3c; margin: 8px 0; }
     .meta { font-size: 14px; color: #555; margin: 4px 0; }
     .meta strong { color: #1c1c1c; }
-    .badge-featured {
-      display: inline-block; background: #f5a524; color: #fff;
-      font-size: 12px; font-weight: 700; padding: 3px 10px;
-      border-radius: 999px; margin-bottom: 6px;
-    }
-    .section {
-      background: #fff; padding: 16px; margin-top: 10px;
-      border-top: 1px solid #e6ece8; border-bottom: 1px solid #e6ece8;
-    }
-    .section h3 {
-      font-size: 13px; font-weight: 700; color: #666;
-      text-transform: uppercase; letter-spacing: 0.5px;
-      margin: 0 0 8px;
-    }
+    .badge-featured { display: inline-block; background: #f5a524; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-bottom: 6px; }
+    .section { background: #fff; padding: 16px; margin-top: 10px; border-top: 1px solid #e6ece8; border-bottom: 1px solid #e6ece8; }
+    .section h3 { font-size: 13px; font-weight: 700; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 8px; }
     .section p { margin: 0; line-height: 1.5; color: #333; font-size: 15px; }
     .seller-name { font-size: 16px; font-weight: 600; color: #1c1c1c; }
-    .contact-bar {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      display: flex; gap: 8px; padding: 12px; background: #fff;
-      border-top: 1px solid #e6ece8;
-      max-width: 720px; margin: 0 auto; z-index: 20;
-    }
-    .contact-bar a {
-      flex: 1; text-align: center; text-decoration: none;
-      padding: 14px; font-size: 15px; font-weight: 700;
-      border-radius: 10px;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-    }
+    .contact-bar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; gap: 8px; padding: 12px; background: #fff; border-top: 1px solid #e6ece8; max-width: 720px; margin: 0 auto; z-index: 20; }
+    .contact-bar a { flex: 1; text-align: center; text-decoration: none; padding: 14px; font-size: 15px; font-weight: 700; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .btn-call { background: #1e7a3c; color: #fff; }
     .btn-wa   { background: #25d366; color: #fff; }
-    .btn-disabled {
-      flex: 1; text-align: center; padding: 14px;
-      font-size: 15px; font-weight: 700;
-      background: #eee; color: #999; border-radius: 10px;
-    }
-    .loading, .empty, .error {
-      text-align: center; padding: 60px 20px;
-      color: #777; font-size: 14px;
-    }
+    .btn-disabled { flex: 1; text-align: center; padding: 14px; font-size: 15px; font-weight: 700; background: #eee; color: #999; border-radius: 10px; }
+    .loading, .empty, .error { text-align: center; padding: 60px 20px; color: #777; font-size: 14px; }
     .error { color: #b00020; }
-
-    /* Report link */
-    .report-link-wrap {
-      text-align: center;
-      padding: 24px 16px 10px;
-    }
-    .report-link {
-      background: none;
-      border: 0;
-      color: #999;
-      font-size: 13px;
-      text-decoration: underline;
-      cursor: pointer;
-      padding: 6px;
-    }
+    .report-link-wrap { text-align: center; padding: 24px 16px 10px; }
+    .report-link { background: none; border: 0; color: #999; font-size: 13px; text-decoration: underline; cursor: pointer; padding: 6px; }
     .report-link:active { color: #b00020; }
-
-    /* Report overlay */
-    .overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 100;
-      display: none;
-      align-items: flex-end;
-      justify-content: center;
-    }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: none; align-items: flex-end; justify-content: center; }
     .overlay.show { display: flex; }
-    .sheet {
-      width: 100%; max-width: 500px;
-      background: #fff;
-      border-radius: 16px 16px 0 0;
-      padding: 20px;
-      max-height: 90vh;
-      overflow-y: auto;
-      animation: slideUp 0.2s ease;
-    }
-    @keyframes slideUp {
-      from { transform: translateY(20px); opacity: 0.8; }
-      to   { transform: translateY(0); opacity: 1; }
-    }
+    .sheet { width: 100%; max-width: 500px; background: #fff; border-radius: 16px 16px 0 0; padding: 20px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.2s ease; }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0.8; } to { transform: translateY(0); opacity: 1; } }
     .sheet h2 { margin: 0 0 4px; font-size: 18px; color: #1c1c1c; }
     .sheet p.sub { margin: 0 0 16px; font-size: 13px; color: #666; }
-    .sheet label {
-      display: block; margin-top: 12px;
-      font-size: 13px; font-weight: 600; color: #333;
-    }
-    .sheet select, .sheet textarea {
-      width: 100%; padding: 12px; font-size: 16px;
-      margin-top: 6px; border: 1px solid #cfd8d2;
-      border-radius: 10px; background: #fbfdfb;
-      font-family: inherit;
-    }
+    .sheet label { display: block; margin-top: 12px; font-size: 13px; font-weight: 600; color: #333; }
+    .sheet select, .sheet textarea { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; font-family: inherit; }
     .sheet textarea { resize: vertical; min-height: 70px; }
-    .sheet-actions {
-      display: flex; gap: 8px; margin-top: 18px;
-    }
-    .sheet-actions button {
-      flex: 1; padding: 14px; font-size: 15px;
-      font-weight: 700; border-radius: 10px;
-      cursor: pointer; border: 0;
-    }
+    .sheet-actions { display: flex; gap: 8px; margin-top: 18px; }
+    .sheet-actions button { flex: 1; padding: 14px; font-size: 15px; font-weight: 700; border-radius: 10px; cursor: pointer; border: 0; }
     .btn-cancel { background: #eee; color: #333; }
     .btn-submit { background: #b00020; color: #fff; }
     .btn-submit:disabled { opacity: 0.6; }
@@ -160,7 +69,6 @@
     <p class="loading">Loading…</p>
   </main>
 
-  <!-- Report overlay -->
   <div class="overlay" id="reportOverlay">
     <div class="sheet">
       <h2>Report this listing</h2>
@@ -193,31 +101,20 @@
   <script src="supabase.js"></script>
   <script>
     let currentProductId = null;
-
     document.addEventListener('DOMContentLoaded', load);
 
     async function load() {
       const content = document.getElementById('content');
-
       const params = new URLSearchParams(window.location.search);
       const id = params.get('id');
       currentProductId = id;
 
-      if (!id) {
-        content.innerHTML = '<div class="error">No product specified.</div>';
-        return;
-      }
+      if (!id) { content.innerHTML = '<div class="error">No product specified.</div>'; return; }
 
       try {
         const p = await getPublicProduct(id);
-        if (!p) {
-          content.innerHTML = '<div class="error">Product not found.</div>';
-          return;
-        }
-        if (p.status === 'blocked') {
-          content.innerHTML = '<div class="error">This listing is no longer available.</div>';
-          return;
-        }
+        if (!p) { content.innerHTML = '<div class="error">Product not found.</div>'; return; }
+        if (p.status === 'blocked') { content.innerHTML = '<div class="error">This listing is no longer available.</div>'; return; }
 
         document.title = (p.title || 'Product') + ' — AgriLink';
         content.innerHTML = render(p);
@@ -231,21 +128,12 @@
       const img = p.image_url
         ? '<img src="' + escapeHtml(p.image_url) + '" alt="' + escapeHtml(p.title || '') + '">'
         : '<div class="placeholder">🌾</div>';
-
       const featured = p.is_featured ? '<div class="badge-featured">⭐ Featured</div>' : '';
       const price = (p.currency || 'KES') + ' ' + Number(p.price || 0).toLocaleString();
       const unit = p.unit ? ' / ' + escapeHtml(p.unit) : '';
-
-      const quantity = p.quantity
-        ? '<p class="meta">Available: <strong>' + escapeHtml(p.quantity) + ' ' + escapeHtml(p.unit || '') + '</strong></p>'
-        : '';
-
+      const quantity = p.quantity ? '<p class="meta">Available: <strong>' + escapeHtml(p.quantity) + ' ' + escapeHtml(p.unit || '') + '</strong></p>' : '';
       const place = [p.location, p.county, p.country].filter(Boolean).join(', ');
-
-      const category = p.category
-        ? '<p class="meta">Category: <strong>' + escapeHtml(p.category) + '</strong></p>'
-        : '';
-
+      const category = p.category ? '<p class="meta">Category: <strong>' + escapeHtml(p.category) + '</strong></p>' : '';
       const sellerName = p.seller_name ? escapeHtml(p.seller_name) : 'AgriLink Seller';
       const phoneRaw = (p.seller_phone || '').replace(/[^0-9]/g, '');
 
@@ -256,19 +144,13 @@
           <div class="contact-bar">
             <a class="btn-call" href="tel:+${escapeHtml(phoneRaw)}">📞 Call</a>
             <a class="btn-wa" href="https://wa.me/${escapeHtml(phoneRaw)}?text=${waText}" target="_blank" rel="noopener">💬 WhatsApp</a>
-          </div>
-        `;
+          </div>`;
       } else {
-        contactHtml = `
-          <div class="contact-bar">
-            <div class="btn-disabled">Contact unavailable</div>
-          </div>
-        `;
+        contactHtml = '<div class="contact-bar"><div class="btn-disabled">Contact unavailable</div></div>';
       }
 
       return `
         <div class="hero">${img}</div>
-
         <div class="info">
           ${featured}
           <h1 class="title">${escapeHtml(p.title || '(untitled)')}</h1>
@@ -277,24 +159,15 @@
           <p class="meta">Location: <strong>${escapeHtml(place || '—')}</strong></p>
           ${category}
         </div>
-
-        ${p.description ? `
-          <div class="section">
-            <h3>Description</h3>
-            <p>${escapeHtml(p.description)}</p>
-          </div>
-        ` : ''}
-
+        ${p.description ? '<div class="section"><h3>Description</h3><p>' + escapeHtml(p.description) + '</p></div>' : ''}
         <div class="section">
           <h3>Seller</h3>
           <p class="seller-name">${sellerName}</p>
           ${p.seller_phone ? '<p class="meta">' + escapeHtml(p.seller_phone) + '</p>' : ''}
         </div>
-
         <div class="report-link-wrap">
           <button class="report-link" id="reportOpenBtn">⚑ Report this listing</button>
         </div>
-
         ${contactHtml}
       `;
     }
@@ -310,7 +183,6 @@
       if (!openBtn) return;
 
       openBtn.addEventListener('click', async () => {
-        // Only logged-in users can report (RLS requires it)
         const s = await getSession();
         if (!s) {
           if (confirm('Please log in to report a listing. Go to login?')) {
@@ -321,61 +193,33 @@
         overlay.classList.add('show');
       });
 
-      cancelBtn.addEventListener('click', () => {
-        overlay.classList.remove('show');
-        msg.textContent = '';
-      });
-
-      overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-          overlay.classList.remove('show');
-          msg.textContent = '';
-        }
-      });
+      cancelBtn.addEventListener('click', () => { overlay.classList.remove('show'); msg.textContent = ''; });
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.classList.remove('show'); msg.textContent = ''; } });
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        msg.className = 'sheet-msg';
-        msg.textContent = '';
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Sending…';
-
+        msg.className = 'sheet-msg'; msg.textContent = '';
+        submitBtn.disabled = true; submitBtn.textContent = 'Sending…';
         try {
           const reason = document.getElementById('reportReason').value;
           const details = document.getElementById('reportDetails').value.trim();
-
           if (!reason) throw new Error('Please choose a reason.');
-
-          await createReport({
-            target_type: 'product',
-            target_id: currentProductId,
-            reason: reason,
-            details: details
-          });
-
+          await createReport({ target_type: 'product', target_id: currentProductId, reason, details });
           msg.className = 'sheet-msg ok';
           msg.textContent = '✅ Thank you. Our team will review this report.';
-          setTimeout(() => {
-            overlay.classList.remove('show');
-            form.reset();
-            msg.textContent = '';
-          }, 1800);
+          setTimeout(() => { overlay.classList.remove('show'); form.reset(); msg.textContent = ''; }, 1800);
         } catch (err) {
           msg.className = 'sheet-msg error';
           msg.textContent = err.message || 'Failed to send.';
         } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Send report';
+          submitBtn.disabled = false; submitBtn.textContent = 'Send report';
         }
       });
     }
 
     function escapeHtml(str) {
       return String(str == null ? '' : str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
   </script>
 </body>
