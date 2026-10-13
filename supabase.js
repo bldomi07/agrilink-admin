@@ -12,6 +12,27 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 
+// ---------- Image upload ----------
+async function uploadImage(file, prefix) {
+  const s = await getSession();
+  if (!s) throw new Error('You must be logged in.');
+  if (!file) throw new Error('No file selected.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Image must be under 5 MB.');
+
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const filename = (prefix || 'img') + '-' + Date.now() + '.' + ext;
+  const path = s.user.id + '/' + filename;
+
+  const r = await db.storage
+    .from('agrilink-images')
+    .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+
+  if (r.error) throw r.error;
+
+  const { data } = db.storage.from('agrilink-images').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 // ---------- Auth ----------
 async function login(email, password) {
   const r = await db.auth.signInWithPassword({ email, password });
@@ -131,6 +152,7 @@ async function deleteProduct(id) {
   const r = await db.from('products').delete().eq('id', id);
   if (r.error) throw r.error;
 }
+
 // ---------- Reports ----------
 async function getReports(statusFilter) {
   let q = db
@@ -158,7 +180,8 @@ async function updateReport(id, updates) {
   if (!r.data || r.data.length === 0) throw new Error('Update blocked by RLS');
   return r.data[0];
 }
-// ---------- Advertisements (admin) ----------
+
+// ---------- Advertisements ----------
 async function getAds() {
   const r = await db
     .from('advertisements')
@@ -190,4 +213,4 @@ async function createAd(data) {
   const r = await db.from('advertisements').insert(data).select().single();
   if (r.error) throw r.error;
   return r.data;
-}
+  }
