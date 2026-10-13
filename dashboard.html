@@ -65,18 +65,19 @@
     }
 
     async function loadView(name) {
-      const view = document.getElementById('view');
-      view.innerHTML = '<p class="small">Loading…</p>';
-      try {
-        if (name === 'settings') return renderSettings(view);
-        if (name === 'admins')   return renderAdmins(view);
-        if (name === 'profiles') return renderProfiles(view);
-        if (name === 'products') return renderProducts(view);
-        if (name === 'reports')  return renderReports(view);
-        if (name === 'ads')      return renderAds(view);
-      } catch (err) {
-        view.innerHTML = '<p class="msg">' + escapeHtml(err.message) + '</p>';
-      }
+  const view = document.getElementById('view');
+  view.innerHTML = '<p class="small">Loading…</p>';
+  try {
+    if (name === 'settings') return await renderSettings(view);
+    if (name === 'admins')   return await renderAdmins(view);
+    if (name === 'profiles') return await renderProfiles(view);
+    if (name === 'products') return await renderProducts(view);
+    if (name === 'reports')  return await renderReports(view);
+    if (name === 'ads')      return await renderAds(view);
+  } catch (err) {
+    console.error('loadView error:', err);
+    view.innerHTML = '<p class="msg">Error: ' + escapeHtml(err && err.message ? err.message : String(err)) + '</p>';
+  }
     }
 
     async function renderSettings(view) {
