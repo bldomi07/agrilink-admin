@@ -10,7 +10,6 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e7a3c">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="AgriLink">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -23,6 +22,32 @@
     .section-head { display: flex; justify-content: space-between; align-items: center; margin: 20px 4px 10px; }
     .section-head h2 { font-size: 16px; margin: 0; color: #1e7a3c; }
     .btn-primary { background: #1e7a3c; color: #fff; text-decoration: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; border: 0; cursor: pointer; }
+    .btn-outline { background: #fff; color: #1e7a3c; border: 1px solid #1e7a3c; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+    /* Role badges */
+    .roles-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .role-badge { background: #e8f3ec; color: #1e7a3c; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+
+    /* Edit form */
+    .edit-form { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid #eee; }
+    .edit-form.show { display: block; }
+    .edit-form label { display: block; margin-top: 12px; font-size: 13px; color: #333; font-weight: 600; }
+    .edit-form input { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; font-family: inherit; }
+    .role-box { margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; padding: 4px 12px; background: #fbfdfb; }
+    .role-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #eef3ef; }
+    .role-row:last-child { border-bottom: 0; }
+    .role-row input[type=checkbox] { width: 20px; height: 20px; margin: 0; accent-color: #1e7a3c; flex-shrink: 0; }
+    .role-row label { margin: 0; font-weight: 500; font-size: 15px; color: #1c1c1c; flex: 1; cursor: pointer; padding: 4px 0; }
+    .edit-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .edit-actions button { flex: 1; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; border: 0; }
+    .btn-save { background: #1e7a3c; color: #fff; }
+    .btn-save:disabled { opacity: 0.6; }
+    .btn-cancel { background: #eee; color: #333; }
+    .edit-msg { margin-top: 10px; font-size: 13px; text-align: center; }
+    .edit-msg.ok    { color: #146c34; }
+    .edit-msg.error { color: #b00020; }
+
+    /* Listing rows */
     .row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #eee; }
     .row:last-child { border-bottom: 0; }
     .row-img { width: 68px; height: 68px; border-radius: 10px; background: #eef3ef; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #a8bfb0; }
@@ -34,6 +59,7 @@
     .row-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
     .row-actions a, .row-actions button { font-size: 12px; padding: 6px 10px; border-radius: 6px; cursor: pointer; text-decoration: none; border: 1px solid #1e7a3c; background: #fff; color: #1e7a3c; font-weight: 600; }
     .row-actions .danger { color: #b00020; border-color: #b00020; }
+    .type-tag { display: inline-block; background: #f1f5f2; color: #666; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; margin-right: 4px; text-transform: uppercase; }
     .status-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
     .status-active { background: #d6f5e0; color: #146c34; }
     .status-sold   { background: #eee; color: #666; }
@@ -42,6 +68,9 @@
     .empty { text-align: center; padding: 30px 10px; color: #777; font-size: 14px; }
     .loading { text-align: center; padding: 40px; color: #777; }
     .error { color: #b00020; text-align: center; padding: 20px; font-size: 14px; }
+    .tabs { display: flex; gap: 6px; margin-bottom: 10px; overflow-x: auto; }
+    .tab-btn { padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; background: #f1f5f2; color: #555; border: 0; cursor: pointer; white-space: nowrap; }
+    .tab-btn.active { background: #1e7a3c; color: #fff; }
   </style>
 </head>
 <body>
@@ -60,6 +89,21 @@
 
   <script src="supabase.js"></script>
   <script>
+    const ALL_ROLES = [
+      { v: 'farmer', l: 'Farmer' },
+      { v: 'buyer', l: 'Buyer' },
+      { v: 'seller', l: 'Seller' },
+      { v: 'service_provider', l: 'Service Provider' },
+      { v: 'job_seeker', l: 'Job Seeker' },
+      { v: 'transport_provider', l: 'Transport Provider' },
+      { v: 'machinery_provider', l: 'Machinery Provider' }
+    ];
+
+    let myProfile = null;
+    let myProducts = [];
+    let myListings = [];
+    let activeTab = 'products';
+
     document.addEventListener('DOMContentLoaded', init);
 
     async function init() {
@@ -67,24 +111,30 @@
       try {
         const session = await getSession();
         if (!session) { window.location.href = 'login.html'; return; }
-        const profile = await getMyProfile();
-        const products = await getMyProducts();
-        content.innerHTML = renderPage(profile, session.user.email, products);
+
+        myProfile = await getMyProfile();
+        myProducts = await getMyProducts();
+        myListings = await getMyListings();
+
+        content.innerHTML = renderPage();
         attachHandlers();
       } catch (err) {
         content.innerHTML = '<p class="error">Failed to load: ' + escapeHtml(err.message) + '</p>';
       }
     }
 
-    function renderPage(profile, email, products) {
-      const name = profile && profile.full_name ? profile.full_name : email;
-      const phone = profile && profile.phone ? profile.phone : '';
-      const county = profile && profile.county ? profile.county : '';
-      const roles = profile && Array.isArray(profile.roles) ? profile.roles.join(', ') : '';
+    function renderPage() {
+      const name = myProfile && myProfile.full_name ? myProfile.full_name : 'AgriLink user';
+      const phone = myProfile && myProfile.phone ? myProfile.phone : '';
+      const county = myProfile && myProfile.county ? myProfile.county : '';
+      const roles = (myProfile && Array.isArray(myProfile.roles)) ? myProfile.roles : [];
 
-      const listings = products.length === 0
-        ? '<div class="empty">You haven\'t posted any products yet.<br><br><a class="btn-primary" href="sell.html">+ Post your first product</a></div>'
-        : products.map(rowHtml).join('');
+      const roleBadges = roles.length
+        ? '<div class="roles-list">' + roles.map(r => {
+            const label = (ALL_ROLES.find(x => x.v === r) || { l: r }).l;
+            return '<span class="role-badge">' + escapeHtml(label) + '</span>';
+          }).join('') + '</div>'
+        : '<div class="meta">No roles set</div>';
 
       return `
         <div class="card">
@@ -93,41 +143,98 @@
               <h1>${escapeHtml(name)}</h1>
               ${phone ? '<p class="meta">' + escapeHtml(phone) + '</p>' : ''}
               ${county ? '<p class="meta">' + escapeHtml(county) + '</p>' : ''}
-              ${roles ? '<p class="meta">' + escapeHtml(roles) + '</p>' : ''}
             </div>
             <button class="logout-btn" id="logoutBtn">Log out</button>
           </div>
+          ${roleBadges}
+          <div style="margin-top: 14px;">
+            <button class="btn-outline" id="editBtn">Edit profile</button>
+          </div>
+
+          <div class="edit-form" id="editForm">
+            <form id="profileForm">
+              <label>Full name</label>
+              <input id="edit_full_name" type="text" required value="${escapeAttr(myProfile?.full_name || '')}">
+
+              <label>Phone</label>
+              <input id="edit_phone" type="tel" required value="${escapeAttr(myProfile?.phone || '')}">
+
+              <label>County</label>
+              <input id="edit_county" type="text" value="${escapeAttr(myProfile?.county || '')}" placeholder="e.g. Nakuru">
+
+              <label>Roles</label>
+              <div class="role-box">
+                ${ALL_ROLES.map(r => `
+                  <div class="role-row">
+                    <input type="checkbox" id="er_${r.v}" value="${r.v}" ${roles.includes(r.v) ? 'checked' : ''}>
+                    <label for="er_${r.v}">${r.l}</label>
+                  </div>
+                `).join('')}
+              </div>
+
+              <div class="edit-actions">
+                <button type="button" class="btn-cancel" id="cancelEditBtn">Cancel</button>
+                <button type="submit" class="btn-save" id="saveBtn">Save changes</button>
+              </div>
+              <p class="edit-msg" id="editMsg"></p>
+            </form>
+          </div>
         </div>
-        <div class="section-head">
-          <h2>My listings</h2>
-          <a class="btn-primary" href="sell.html">+ Post new</a>
+
+        <div class="card">
+          <div class="tabs">
+            <button class="tab-btn ${activeTab === 'products' ? 'active' : ''}" data-tab="products">Products (${myProducts.length})</button>
+            <button class="tab-btn ${activeTab === 'listings' ? 'active' : ''}" data-tab="listings">Other listings (${myListings.length})</button>
+          </div>
+          <div style="text-align: right; margin-bottom: 8px;">
+            <a class="btn-primary" href="post.html">+ Post new</a>
+          </div>
+          <div id="itemsBox">
+            ${activeTab === 'products' ? renderProducts() : renderListings()}
+          </div>
         </div>
-        <div class="card">${listings}</div>
       `;
     }
 
-    function rowHtml(p) {
+    function renderProducts() {
+      if (!myProducts.length) {
+        return '<div class="empty">You haven\'t posted any products yet.<br><br><a class="btn-primary" href="post.html">+ Post your first product</a></div>';
+      }
+      return myProducts.map(p => listingRow(p, 'product')).join('');
+    }
+
+    function renderListings() {
+      if (!myListings.length) {
+        return '<div class="empty">You haven\'t posted any services, jobs, machinery or farms yet.<br><br><a class="btn-primary" href="post.html">+ Post a listing</a></div>';
+      }
+      return myListings.map(p => listingRow(p, 'listing')).join('');
+    }
+
+    function listingRow(p, kind) {
       const img = p.image_url
         ? '<img src="' + escapeHtml(p.image_url) + '" alt="" onerror="this.parentNode.innerHTML=\'🌾\'">'
         : '🌾';
       const price = (p.currency || 'KES') + ' ' + Number(p.price || 0).toLocaleString();
-      const unit = p.unit ? ' / ' + escapeHtml(p.unit) : '';
+      const unit = p.unit && p.unit !== 'unit' ? ' / ' + escapeHtml(p.unit) : '';
       const place = [p.location, p.county].filter(Boolean).join(', ');
       const status = p.status || 'active';
       const statusBadge = '<span class="status-badge status-' + status + '">' + status + '</span>';
-      const soldBtn = status === 'active' ? '<button data-action="sold" data-id="' + p.id + '">Mark sold</button>' : '';
+      const soldBtn = status === 'active' ? '<button data-action="sold" data-kind="' + kind + '" data-id="' + p.id + '">Mark sold</button>' : '';
+      const typeTag = kind === 'listing' && p.type ? '<span class="type-tag">' + escapeHtml(p.type) + '</span>' : '';
+      const detailPage = kind === 'product' ? 'product.html' : 'listing.html';
+      const detailUrl = detailPage + '?id=' + encodeURIComponent(p.id) + (kind === 'listing' ? '&type=' + p.type : '');
 
       return `
         <div class="row">
           <div class="row-img">${img}</div>
           <div class="row-body">
-            <p class="row-title">${escapeHtml(p.title || '(untitled)')} ${statusBadge}</p>
+            <p class="row-title">${typeTag}${escapeHtml(p.title || '(untitled)')} ${statusBadge}</p>
             <div class="row-price">${escapeHtml(price)}${unit}</div>
             ${place ? '<div class="row-meta">' + escapeHtml(place) + '</div>' : ''}
             <div class="row-actions">
-              <a href="product.html?id=${encodeURIComponent(p.id)}">View</a>
+              <a href="${detailUrl}">View</a>
               ${soldBtn}
-              <button class="danger" data-action="delete" data-id="${p.id}">Delete</button>
+              <button class="danger" data-action="delete" data-kind="${kind}" data-id="${p.id}">Delete</button>
             </div>
           </div>
         </div>`;
@@ -137,22 +244,48 @@
       const logoutBtn = document.getElementById('logoutBtn');
       if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
+      document.getElementById('editBtn').addEventListener('click', () => {
+        document.getElementById('editForm').classList.add('show');
+      });
+      document.getElementById('cancelEditBtn').addEventListener('click', () => {
+        document.getElementById('editForm').classList.remove('show');
+      });
+      document.getElementById('profileForm').addEventListener('submit', saveProfile);
+
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeTab = btn.dataset.tab;
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById('itemsBox').innerHTML =
+            activeTab === 'products' ? renderProducts() : renderListings();
+          attachRowHandlers();
+        });
+      });
+
+      attachRowHandlers();
+    }
+
+    function attachRowHandlers() {
       document.querySelectorAll('button[data-action]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const id = btn.dataset.id;
+          const kind = btn.dataset.kind;
           const action = btn.dataset.action;
           btn.disabled = true;
           const original = btn.textContent;
           btn.textContent = '…';
           try {
             if (action === 'delete') {
-              if (!confirm('Delete this listing permanently?')) {
+              if (!confirm('Delete this permanently?')) {
                 btn.disabled = false; btn.textContent = original; return;
               }
-              await deleteMyProduct(id);
+              if (kind === 'product') await deleteMyProduct(id);
+              else await deleteMyListing(id);
             }
             if (action === 'sold') {
-              await markMyProductSold(id);
+              if (kind === 'product') await markMyProductSold(id);
+              else await markMyListingSold(id);
             }
             await init();
           } catch (err) {
@@ -163,10 +296,50 @@
       });
     }
 
+    async function saveProfile(e) {
+      e.preventDefault();
+      const msg = document.getElementById('editMsg');
+      const btn = document.getElementById('saveBtn');
+      msg.className = 'edit-msg'; msg.textContent = '';
+
+      const roles = [];
+      document.querySelectorAll('.role-box input[type=checkbox]').forEach(cb => {
+        if (cb.checked) roles.push(cb.value);
+      });
+      if (roles.length === 0) {
+        msg.className = 'edit-msg error';
+        msg.textContent = 'Please tick at least one role.';
+        return;
+      }
+
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        const s = await getSession();
+        const r = await db.from('profiles').update({
+          full_name: document.getElementById('edit_full_name').value.trim(),
+          phone:     document.getElementById('edit_phone').value.trim(),
+          county:    document.getElementById('edit_county').value.trim() || null,
+          roles:     roles
+        }).eq('id', s.user.id).select();
+
+        if (r.error) throw r.error;
+        msg.className = 'edit-msg ok';
+        msg.textContent = '✅ Saved.';
+        setTimeout(init, 600);
+      } catch (err) {
+        msg.className = 'edit-msg error';
+        msg.textContent = err.message || 'Failed to save.';
+        btn.disabled = false;
+      } finally {
+        btn.textContent = 'Save changes';
+      }
+    }
+
     function escapeHtml(str) {
       return String(str == null ? '' : str)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
+    function escapeAttr(str) { return escapeHtml(str); }
   </script>
 </body>
 </html>
