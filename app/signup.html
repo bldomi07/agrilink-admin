@@ -10,18 +10,22 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1e7a3c">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="AgriLink">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    .auth-wrap { max-width: 420px; margin: 20px auto; padding: 24px; background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+    .auth-wrap { max-width: 480px; margin: 20px auto; padding: 24px; background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
     .auth-wrap h1 { font-size: 24px; color: #1e7a3c; margin: 0 0 4px; }
-    .auth-wrap p.sub { color: #666; font-size: 14px; margin: 0 0 20px; }
-    label { display: block; margin-top: 14px; font-size: 13px; color: #333; }
-    input, select { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; }
+    .auth-wrap p.sub { color: #666; font-size: 14px; margin: 0 0 18px; }
+    label { display: block; margin-top: 14px; font-size: 13px; color: #333; font-weight: 600; }
+    input, select { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; font-family: inherit; }
+    .role-box { margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; padding: 4px 12px; background: #fbfdfb; }
+    .role-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #eef3ef; }
+    .role-row:last-child { border-bottom: 0; }
+    .role-row input[type=checkbox] { width: 20px; height: 20px; margin: 0; accent-color: #1e7a3c; flex-shrink: 0; }
+    .role-row label { margin: 0; font-weight: 500; font-size: 15px; color: #1c1c1c; flex: 1; cursor: pointer; padding: 4px 0; }
     button.primary { width: 100%; margin-top: 20px; padding: 14px; font-size: 16px; font-weight: 700; color: #fff; background: #1e7a3c; border: 0; border-radius: 10px; cursor: pointer; }
-    button.primary:disabled { opacity: 0.6; }
-    .msg { margin-top: 12px; font-size: 14px; }
+    button.primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .msg { margin-top: 12px; font-size: 14px; min-height: 18px; }
     .msg.error { color: #b00020; }
     .msg.ok    { color: #146c34; }
     .switch { text-align: center; margin-top: 18px; font-size: 14px; color: #666; }
@@ -35,31 +39,40 @@
       <span class="logo-icon">🚜</span>
       <span class="logo-text">AgriLink</span>
     </div>
-    <a href="index.html" class="login-btn">Browse</a>
+    <a href="login.html" class="login-btn">Log in</a>
   </header>
 
   <div class="auth-wrap">
     <h1>Join AgriLink</h1>
-    <p class="sub">Create your free account in seconds</p>
+    <p class="sub">Create your free account</p>
 
     <form id="signupForm">
       <label>Full name</label>
       <input id="full_name" type="text" required>
+
       <label>Phone</label>
       <input id="phone" type="tel" required placeholder="+254712345678">
+
       <label>Email</label>
       <input id="email" type="email" required>
+
       <label>County</label>
       <input id="county" type="text" placeholder="e.g. Nakuru">
-      <label>I am a…</label>
-      <select id="role">
-        <option value="farmer">Farmer</option>
-        <option value="buyer">Buyer</option>
-        <option value="seller">Seller</option>
-        <option value="service_provider">Service provider</option>
-      </select>
+
+      <label>I am a… (tick all that apply)</label>
+      <div class="role-box">
+        <div class="role-row"><input type="checkbox" id="r_farmer" value="farmer"><label for="r_farmer">Farmer</label></div>
+        <div class="role-row"><input type="checkbox" id="r_buyer" value="buyer"><label for="r_buyer">Buyer</label></div>
+        <div class="role-row"><input type="checkbox" id="r_seller" value="seller"><label for="r_seller">Seller</label></div>
+        <div class="role-row"><input type="checkbox" id="r_service" value="service_provider"><label for="r_service">Service Provider</label></div>
+        <div class="role-row"><input type="checkbox" id="r_jobseeker" value="job_seeker"><label for="r_jobseeker">Job Seeker</label></div>
+        <div class="role-row"><input type="checkbox" id="r_transport" value="transport_provider"><label for="r_transport">Transport Provider</label></div>
+        <div class="role-row"><input type="checkbox" id="r_machinery" value="machinery_provider"><label for="r_machinery">Machinery Provider</label></div>
+      </div>
+
       <label>Password</label>
       <input id="password" type="password" required minlength="6">
+
       <button type="submit" class="primary" id="submitBtn">Create account</button>
       <p class="msg" id="msg"></p>
     </form>
@@ -73,26 +86,42 @@
       e.preventDefault();
       const msg = document.getElementById('msg');
       const btn = document.getElementById('submitBtn');
-      msg.className = 'msg'; msg.textContent = '';
-      btn.disabled = true; btn.textContent = 'Creating account…';
+      msg.className = 'msg';
+      msg.textContent = '';
+
+      // Collect all ticked roles
+      const roles = [];
+      document.querySelectorAll('.role-box input[type=checkbox]').forEach(cb => {
+        if (cb.checked) roles.push(cb.value);
+      });
+
+      if (roles.length === 0) {
+        msg.className = 'msg error';
+        msg.textContent = 'Please tick at least one role.';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Creating account…';
+
       try {
-        const payload = {
+        await signUp({
           full_name: document.getElementById('full_name').value.trim(),
           phone:     document.getElementById('phone').value.trim(),
           email:     document.getElementById('email').value.trim(),
           county:    document.getElementById('county').value.trim(),
-          role:      document.getElementById('role').value,
+          roles:     roles,
           password:  document.getElementById('password').value
-        };
-        await signUp(payload);
+        });
         msg.className = 'msg ok';
-        msg.textContent = '✅ Account created. Redirecting…';
+        msg.textContent = '✅ Account created. Redirecting to login…';
         setTimeout(() => { window.location.href = 'login.html'; }, 1200);
       } catch (err) {
         msg.className = 'msg error';
         msg.textContent = err.message || 'Signup failed.';
       } finally {
-        btn.disabled = false; btn.textContent = 'Create account';
+        btn.disabled = false;
+        btn.textContent = 'Create account';
       }
     });
   </script>
