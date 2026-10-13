@@ -20,16 +20,17 @@ async function uploadImage(file, prefix) {
   return data.publicUrl;
 }
 
-async function signUp({ email, password, full_name, phone, county, role }) {
+async function signUp({ email, password, full_name, phone, county, roles }) {
   const r = await db.auth.signUp({ email, password, options: { data: { full_name, phone } } });
   if (r.error) throw r.error;
   if (r.data && r.data.user) {
     const uid = r.data.user.id;
     const { data: existing } = await db.from('profiles').select('id').eq('id', uid).maybeSingle();
+    const rolesArray = Array.isArray(roles) && roles.length ? roles : ['farmer'];
     const profileData = {
       id: uid, full_name, phone, email,
       county: county || null, country: 'Kenya',
-      roles: [role || 'farmer'],
+      roles: rolesArray,
       is_active: true, is_blocked: false, is_verified: false
     };
     if (existing) {
@@ -59,6 +60,12 @@ async function getSession() {
 }
 
 async function requireAuth() {
+  const s = await getSession();
+  if (!s) { window.location.href = 'login.html'; return null; }
+  return s;
+}
+
+async function requireLogin() {
   const s = await getSession();
   if (!s) { window.location.href = 'login.html'; return null; }
   return s;
@@ -229,12 +236,8 @@ async function getActiveAds(position) {
   if (r.error) throw r.error;
   return r.data;
 }
-async function requireLogin() {
-  const s = await getSession();
-  if (!s) { window.location.href = 'login.html'; return null; }
-  return s;
-}
-// Auto-load banner.js (keeps this file small so it pastes safely)
+
+// Auto-load banner.js
 (function loadBanner() {
   try {
     const s = document.createElement('script');
