@@ -34,8 +34,7 @@ async function uploadImage(file, prefix) {
 // ---------- Auth ----------
 async function signUp({ email, password, full_name, phone, county, role }) {
   const r = await db.auth.signUp({
-    email,
-    password,
+    email, password,
     options: { data: { full_name, phone } }
   });
   if (r.error) throw r.error;
@@ -93,7 +92,7 @@ async function getMyProfile() {
   return r.data;
 }
 
-// ---------- Public reads ----------
+// ---------- Products (public) ----------
 async function getPublicProducts() {
   const r = await db
     .from('products')
@@ -111,6 +110,27 @@ async function getPublicProduct(id) {
   return r.data;
 }
 
+// ---------- Listings (public) ----------
+async function getPublicListings(type) {
+  let q = db
+    .from('listings')
+    .select('id, type, title, description, category, price, currency, quantity, unit, county, location, country, status, is_featured, created_at, seller_id, seller_name, seller_phone, image_url')
+    .eq('status', 'active')
+    .order('is_featured', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (type) q = q.eq('type', type);
+  const r = await q;
+  if (r.error) throw r.error;
+  return r.data;
+}
+
+async function getPublicListing(id) {
+  const r = await db.from('listings').select('*').eq('id', id).maybeSingle();
+  if (r.error) throw r.error;
+  return r.data;
+}
+
+// ---------- Settings ----------
 async function getPublicSettings() {
   const r = await db.from('settings').select('*').eq('id', 1).maybeSingle();
   if (r.error) throw r.error;
@@ -136,6 +156,29 @@ async function createProduct(data) {
   });
 
   const r = await db.from('products').insert(row).select().single();
+  if (r.error) throw r.error;
+  return r.data;
+}
+
+// ---------- Create listing ----------
+async function createListing(data) {
+  const s = await getSession();
+  if (!s) throw new Error('You must be logged in.');
+  const profile = await getMyProfile();
+  if (!profile) throw new Error('Profile not found.');
+
+  const row = Object.assign({}, data, {
+    seller_id: s.user.id,
+    seller_name: profile.full_name || '',
+    seller_phone: profile.phone || '',
+    country: 'Kenya',
+    currency: 'KES',
+    status: 'active',
+    is_featured: false,
+    view_count: 0
+  });
+
+  const r = await db.from('listings').insert(row).select().single();
   if (r.error) throw r.error;
   return r.data;
 }
@@ -173,6 +216,39 @@ async function markMyProductSold(id) {
   return r.data[0];
 }
 
+// ---------- My listings ----------
+async function getMyListings() {
+  const s = await getSession();
+  if (!s) throw new Error('Not signed in');
+  const r = await db
+    .from('listings')
+    .select('id, type, title, category, price, currency, quantity, unit, county, location, status, is_featured, image_url, created_at')
+    .eq('seller_id', s.user.id)
+    .order('created_at', { ascending: false });
+  if (r.error) throw r.error;
+  return r.data;
+}
+
+async function deleteMyListing(id) {
+  const s = await getSession();
+  if (!s) throw new Error('Not signed in');
+  const r = await db.from('listings').delete().eq('id', id).eq('seller_id', s.user.id);
+  if (r.error) throw r.error;
+  return true;
+}
+
+async function markMyListingSold(id) {
+  const s = await getSession();
+  if (!s) throw new Error('Not signed in');
+  const r = await db
+    .from('listings')
+    .update({ status: 'sold', updated_at: new Date().toISOString() })
+    .eq('id', id).eq('seller_id', s.user.id).select();
+  if (r.error) throw r.error;
+  if (!r.data || r.data.length === 0) throw new Error('Update blocked');
+  return r.data[0];
+}
+
 // ---------- Reports ----------
 async function createReport({ target_type, target_id, reason, details }) {
   const s = await getSession();
@@ -188,7 +264,7 @@ async function createReport({ target_type, target_id, reason, details }) {
   return r.data;
 }
 
-// ---------- Ads (public) ----------
+// ---------- Ads ----------
 async function getActiveAds(position) {
   const r = await db
     .from('advertisements')
