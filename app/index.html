@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AgriLink — Buy & Sell Farm Produce in Kenya</title>
+  <title>AgriLink — Kenya Farm Marketplace</title>
   <meta name="description" content="AgriLink — Kenya's marketplace for farmers, buyers and sellers." />
   <link rel="stylesheet" href="app.css" />
   <link rel="icon" type="image/svg+xml" href="icon.svg">
@@ -15,127 +15,34 @@
   <meta name="apple-mobile-web-app-title" content="AgriLink">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    .search-wrap {
-      background: #fff;
-      padding: 10px 12px 12px;
-      border-bottom: 1px solid #e6ece8;
-      position: sticky;
-      top: 56px;
-      z-index: 9;
-    }
+    .search-wrap { background: #fff; padding: 10px 12px 12px; border-bottom: 1px solid #e6ece8; position: sticky; top: 56px; z-index: 9; }
     .search-input-wrap { display: flex; gap: 8px; }
-    .search-input {
-      flex: 1; padding: 11px 14px;
-      border: 1px solid #cfd8d2; border-radius: 10px;
-      font-size: 15px; background: #fbfdfb;
-    }
-    .clear-btn {
-      padding: 11px 12px; background: #fff; color: #b00020;
-      border: 1px solid #b00020; border-radius: 10px;
-      font-size: 13px; font-weight: 600; cursor: pointer; display: none;
-    }
+    .search-input { flex: 1; padding: 11px 14px; border: 1px solid #cfd8d2; border-radius: 10px; font-size: 15px; background: #fbfdfb; }
+    .clear-btn { padding: 11px 12px; background: #fff; color: #b00020; border: 1px solid #b00020; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; display: none; }
     .clear-btn.show { display: inline-block; }
-    .filters {
-      display: flex; gap: 6px; overflow-x: auto;
-      padding: 10px 0 0; scrollbar-width: none;
-    }
+    .filters { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 0; scrollbar-width: none; }
     .filters::-webkit-scrollbar { display: none; }
-    .chip {
-      flex: 0 0 auto; padding: 6px 12px;
-      font-size: 13px; font-weight: 600;
-      color: #555; background: #f1f5f2;
-      border: 0; border-radius: 999px;
-      cursor: pointer; white-space: nowrap;
-    }
+    .chip { flex: 0 0 auto; padding: 6px 12px; font-size: 13px; font-weight: 600; color: #555; background: #f1f5f2; border: 0; border-radius: 999px; cursor: pointer; white-space: nowrap; }
     .chip.active { background: #1e7a3c; color: #fff; }
-    .county-select {
-      margin-top: 8px; width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #cfd8d2; border-radius: 10px;
-      font-size: 14px; background: #fbfdfb;
-    }
+    .county-select { margin-top: 8px; width: 100%; padding: 10px 12px; border: 1px solid #cfd8d2; border-radius: 10px; font-size: 14px; background: #fbfdfb; }
     .result-count { padding: 10px 4px 0; font-size: 13px; color: #666; }
-
-    /* Ad banner / slideshow */
     #adSlot { padding: 12px 12px 0; }
-    .ad-wrap {
-      position: relative;
-      width: 100%;
-      aspect-ratio: 16 / 7;
-      background: #eef3ef;
-      border-radius: 14px;
-      overflow: hidden;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-    .ad-slide {
-      position: absolute;
-      inset: 0;
-      display: none;
-      text-decoration: none;
-      color: inherit;
-    }
+    .ad-wrap { position: relative; width: 100%; aspect-ratio: 16/7; background: #eef3ef; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .ad-slide { position: absolute; inset: 0; display: none; text-decoration: none; color: inherit; }
     .ad-slide.active { display: block; }
-    .ad-slide img {
-      width: 100%; height: 100%;
-      object-fit: cover; display: block;
-    }
-    .ad-overlay {
-      position: absolute;
-      inset: auto 0 0 0;
-      padding: 12px 14px;
-      background: linear-gradient(transparent, rgba(0,0,0,0.65));
-      color: #fff;
-    }
+    .ad-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .ad-overlay { position: absolute; inset: auto 0 0 0; padding: 12px 14px; background: linear-gradient(transparent, rgba(0,0,0,0.65)); color: #fff; }
     .ad-title { font-size: 15px; font-weight: 700; }
     .ad-desc { font-size: 12px; opacity: 0.9; margin-top: 2px; }
-    .ad-dots {
-      position: absolute;
-      bottom: 8px; right: 12px;
-      display: flex; gap: 5px;
-    }
-    .ad-dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.5);
-      border: 0; padding: 0;
-    }
+    .ad-dots { position: absolute; bottom: 8px; right: 12px; display: flex; gap: 5px; }
+    .ad-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.5); border: 0; padding: 0; }
     .ad-dot.active { background: #fff; }
-    .ad-textonly {
-      width: 100%; height: 100%;
-      display: flex; flex-direction: column;
-      justify-content: center; padding: 16px 20px;
-      background: linear-gradient(135deg, #1e7a3c, #2ea15a);
-      color: #fff;
-    }
+    .ad-textonly { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 16px 20px; background: linear-gradient(135deg, #1e7a3c, #2ea15a); color: #fff; }
     .ad-textonly .ad-title { font-size: 18px; }
-
-    /* Splash */
-    #splash {
-      position: fixed;
-      inset: 0;
-      background: #1e7a3c;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-      opacity: 1;
-      transition: opacity 0.4s ease;
-    }
+    #splash { position: fixed; inset: 0; background: #1e7a3c; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; opacity: 1; transition: opacity 0.4s ease; }
     #splash.hide { opacity: 0; pointer-events: none; }
-    #splash img {
-      width: 120px; height: 120px;
-      border-radius: 24px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-    }
-    .splash-text {
-      color: #fff;
-      font-family: system-ui, -apple-system, sans-serif;
-      font-size: 20px;
-      font-weight: 700;
-      margin-top: 16px;
-      letter-spacing: 1px;
-    }
+    #splash img { width: 120px; height: 120px; border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+    .splash-text { color: #fff; font-family: system-ui, -apple-system, sans-serif; font-size: 20px; font-weight: 700; margin-top: 16px; letter-spacing: 1px; }
   </style>
 </head>
 <body>
@@ -151,44 +58,34 @@
       <span class="logo-text">AgriLink</span>
     </div>
     <div style="display:flex; gap:6px;">
-      <a href="sell.html" class="login-btn" id="sellLink" style="display:none; background:#1e7a3c; color:#fff; border-color:#1e7a3c;">+ Sell</a>
+      <a href="post.html" class="login-btn" id="sellLink" style="display:none; background:#1e7a3c; color:#fff; border-color:#1e7a3c;">+ Post</a>
       <a href="login.html" class="login-btn" id="authLink">Log in</a>
     </div>
   </header>
 
-  <nav class="tabs">
+  <nav class="tabs" id="tabs">
     <button class="tab active" data-type="product">Products</button>
-    <button class="tab" disabled>Services<small>soon</small></button>
-    <button class="tab" disabled>Jobs<small>soon</small></button>
-    <button class="tab" disabled>Machinery<small>soon</small></button>
-    <button class="tab" disabled>Farms<small>soon</small></button>
+    <button class="tab" data-type="service">Services</button>
+    <button class="tab" data-type="job">Jobs</button>
+    <button class="tab" data-type="machinery">Machinery</button>
+    <button class="tab" data-type="farm">Farms</button>
   </nav>
 
   <div id="adSlot"></div>
 
   <div class="search-wrap">
     <div class="search-input-wrap">
-      <input id="searchInput" class="search-input" type="search" placeholder="Search products…" autocomplete="off">
+      <input id="searchInput" class="search-input" type="search" placeholder="Search…" autocomplete="off">
       <button id="clearBtn" class="clear-btn">Clear</button>
     </div>
-    <div class="filters" id="categoryFilters">
-      <button class="chip active" data-cat="">All</button>
-      <button class="chip" data-cat="grain">Grain</button>
-      <button class="chip" data-cat="vegetable">Vegetables</button>
-      <button class="chip" data-cat="fruit">Fruits</button>
-      <button class="chip" data-cat="livestock">Livestock</button>
-      <button class="chip" data-cat="dairy">Dairy</button>
-      <button class="chip" data-cat="poultry">Poultry</button>
-      <button class="chip" data-cat="seed">Seeds</button>
-      <button class="chip" data-cat="other">Other</button>
-    </div>
+    <div class="filters" id="categoryFilters"></div>
     <select id="countyFilter" class="county-select">
       <option value="">All counties</option>
     </select>
   </div>
 
   <main id="content">
-    <p class="loading">Loading products…</p>
+    <p class="loading">Loading…</p>
   </main>
 
   <footer class="app-footer">
@@ -197,13 +94,36 @@
 
   <script src="supabase.js"></script>
   <script>
-    let ALL_PRODUCTS = [];
-    let state = { q: '', cat: '', county: '' };
+    let ALL_ITEMS = [];
+    let state = { q: '', cat: '', county: '', type: 'product' };
     let adTimer = null;
+
+    const CATS = {
+      product: [
+        { v: '', l: 'All' }, { v: 'grain', l: 'Grain' }, { v: 'vegetable', l: 'Vegetables' },
+        { v: 'fruit', l: 'Fruits' }, { v: 'livestock', l: 'Livestock' }, { v: 'dairy', l: 'Dairy' },
+        { v: 'poultry', l: 'Poultry' }, { v: 'seed', l: 'Seeds' }, { v: 'other', l: 'Other' }
+      ],
+      service: [
+        { v: '', l: 'All' }, { v: 'transport', l: 'Transport' }, { v: 'labour', l: 'Labour' },
+        { v: 'vet', l: 'Vet' }, { v: 'extension', l: 'Extension' }, { v: 'repair', l: 'Repair' }, { v: 'other', l: 'Other' }
+      ],
+      job: [
+        { v: '', l: 'All' }, { v: 'farm_work', l: 'Farm work' }, { v: 'driver', l: 'Driver' },
+        { v: 'casual', l: 'Casual' }, { v: 'contract', l: 'Contract' }, { v: 'other', l: 'Other' }
+      ],
+      machinery: [
+        { v: '', l: 'All' }, { v: 'tractor', l: 'Tractor' }, { v: 'harvester', l: 'Harvester' },
+        { v: 'irrigation', l: 'Irrigation' }, { v: 'processing', l: 'Processing' }, { v: 'storage', l: 'Storage' }, { v: 'other', l: 'Other' }
+      ],
+      farm: [
+        { v: '', l: 'All' }, { v: 'sale', l: 'For sale' }, { v: 'lease', l: 'For lease' },
+        { v: 'rent', l: 'For rent' }, { v: 'other', l: 'Other' }
+      ]
+    };
 
     document.addEventListener('DOMContentLoaded', init);
 
-    // Hide splash shortly after load
     setTimeout(() => {
       const s = document.getElementById('splash');
       if (s) s.classList.add('hide');
@@ -224,8 +144,43 @@
         }
       } catch (e) {}
 
+      attachTabHandlers();
       attachFilterHandlers();
-      await Promise.all([ loadAds(), loadProducts() ]);
+      await Promise.all([ loadAds(), loadItems() ]);
+    }
+
+    function attachTabHandlers() {
+      document.querySelectorAll('.tab').forEach(t => {
+        t.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+          t.classList.add('active');
+          state.type = t.dataset.type;
+          state.cat = '';
+          state.q = '';
+          state.county = '';
+          document.getElementById('searchInput').value = '';
+          document.getElementById('countyFilter').value = '';
+          renderCategoryChips();
+          loadItems();
+        });
+      });
+    }
+
+    function renderCategoryChips() {
+      const box = document.getElementById('categoryFilters');
+      const cats = CATS[state.type] || [{ v: '', l: 'All' }];
+      box.innerHTML = cats.map(c =>
+        '<button class="chip' + (state.cat === c.v ? ' active' : '') + '" data-cat="' + c.v + '">' + c.l + '</button>'
+      ).join('');
+      box.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          box.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+          chip.classList.add('active');
+          state.cat = chip.dataset.cat;
+          updateClearBtn();
+          render();
+        });
+      });
     }
 
     // ---------- Ads ----------
@@ -233,15 +188,10 @@
       try {
         const ads = await getActiveAds('home_top');
         const slot = document.getElementById('adSlot');
-        if (!ads || ads.length === 0) {
-          slot.innerHTML = '';
-          return;
-        }
+        if (!ads || ads.length === 0) { slot.innerHTML = ''; return; }
         slot.innerHTML = buildAdHtml(ads);
         startAdRotation(ads.length);
-      } catch (e) {
-        document.getElementById('adSlot').innerHTML = '';
-      }
+      } catch (e) { document.getElementById('adSlot').innerHTML = ''; }
     }
 
     function buildAdHtml(ads) {
@@ -250,29 +200,18 @@
           ? '<img src="' + escapeHtml(a.image_url) + '" alt="' + escapeHtml(a.title || '') + '" onerror="this.style.display=\'none\'">'
           : '<div class="ad-textonly"><div class="ad-title">' + escapeHtml(a.title || '') + '</div>' +
             (a.description ? '<div class="ad-desc">' + escapeHtml(a.description) + '</div>' : '') + '</div>';
-
         const overlay = a.image_url
-          ? '<div class="ad-overlay">' +
-              '<div class="ad-title">' + escapeHtml(a.title || '') + '</div>' +
-              (a.description ? '<div class="ad-desc">' + escapeHtml(a.description) + '</div>' : '') +
-            '</div>'
+          ? '<div class="ad-overlay"><div class="ad-title">' + escapeHtml(a.title || '') + '</div>' +
+            (a.description ? '<div class="ad-desc">' + escapeHtml(a.description) + '</div>' : '') + '</div>'
           : '';
-
         const cls = 'ad-slide' + (i === 0 ? ' active' : '');
         const tag = a.link_url ? 'a' : 'div';
         const href = a.link_url ? ' href="' + escapeHtml(a.link_url) + '" target="_blank" rel="noopener"' : '';
-
-        return '<' + tag + ' class="' + cls + '" data-index="' + i + '"' + href + '>' +
-          inner + overlay +
-        '</' + tag + '>';
+        return '<' + tag + ' class="' + cls + '" data-index="' + i + '"' + href + '>' + inner + overlay + '</' + tag + '>';
       }).join('');
-
       const dots = ads.length > 1
-        ? '<div class="ad-dots">' +
-          ads.map((_, i) => '<button class="ad-dot' + (i === 0 ? ' active' : '') + '" data-dot="' + i + '"></button>').join('') +
-          '</div>'
+        ? '<div class="ad-dots">' + ads.map((_, i) => '<button class="ad-dot' + (i === 0 ? ' active' : '') + '" data-dot="' + i + '"></button>').join('') + '</div>'
         : '';
-
       return '<div class="ad-wrap" id="adWrap">' + slides + dots + '</div>';
     }
 
@@ -281,15 +220,12 @@
       let idx = 0;
       const wrap = document.getElementById('adWrap');
       if (!wrap) return;
-
       const show = (n) => {
         idx = ((n % count) + count) % count;
         wrap.querySelectorAll('.ad-slide').forEach((s, i) => s.classList.toggle('active', i === idx));
         wrap.querySelectorAll('.ad-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
       };
-
       adTimer = setInterval(() => show(idx + 1), 5000);
-
       wrap.querySelectorAll('.ad-dot').forEach(dot => {
         dot.addEventListener('click', (e) => {
           e.preventDefault();
@@ -298,7 +234,6 @@
           adTimer = setInterval(() => show(idx + 1), 5000);
         });
       });
-
       let touchStartX = null;
       wrap.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
       wrap.addEventListener('touchend', (e) => {
@@ -319,35 +254,16 @@
 
       searchInput.addEventListener('input', () => {
         state.q = searchInput.value.trim().toLowerCase();
-        updateClearBtn();
-        render();
+        updateClearBtn(); render();
       });
-
       clearBtn.addEventListener('click', () => {
-        state = { q: '', cat: '', county: '' };
-        searchInput.value = '';
-        countySelect.value = '';
-        document.querySelectorAll('.chip').forEach(c => {
-          c.classList.toggle('active', c.dataset.cat === '');
-        });
-        updateClearBtn();
-        render();
+        state.q = ''; state.cat = ''; state.county = '';
+        searchInput.value = ''; countySelect.value = '';
+        renderCategoryChips(); updateClearBtn(); render();
       });
-
-      document.querySelectorAll('.chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-          document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-          chip.classList.add('active');
-          state.cat = chip.dataset.cat;
-          updateClearBtn();
-          render();
-        });
-      });
-
       countySelect.addEventListener('change', () => {
         state.county = countySelect.value;
-        updateClearBtn();
-        render();
+        updateClearBtn(); render();
       });
     }
 
@@ -356,10 +272,15 @@
       document.getElementById('clearBtn').classList.toggle('show', !!active);
     }
 
-    async function loadProducts() {
+    async function loadItems() {
       const content = document.getElementById('content');
+      content.innerHTML = '<p class="loading">Loading…</p>';
       try {
-        ALL_PRODUCTS = await getPublicProducts();
+        if (state.type === 'product') {
+          ALL_ITEMS = await getPublicProducts();
+        } else {
+          ALL_ITEMS = await getPublicListings(state.type);
+        }
         populateCounties();
         render();
       } catch (err) {
@@ -370,14 +291,14 @@
     function populateCounties() {
       const select = document.getElementById('countyFilter');
       const counties = Array.from(new Set(
-        ALL_PRODUCTS.map(p => (p.county || '').trim()).filter(Boolean)
+        ALL_ITEMS.map(p => (p.county || '').trim()).filter(Boolean)
       )).sort();
       select.innerHTML = '<option value="">All counties</option>' +
         counties.map(c => '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>').join('');
     }
 
     function applyFilters() {
-      return ALL_PRODUCTS.filter(p => {
+      return ALL_ITEMS.filter(p => {
         if (state.q) {
           const title = (p.title || '').toLowerCase();
           const desc = (p.description || '').toLowerCase();
@@ -392,33 +313,34 @@
     function render() {
       const content = document.getElementById('content');
       const list = applyFilters();
-
-      if (ALL_PRODUCTS.length === 0) {
-        content.innerHTML = '<div class="empty">No products yet.<br>Check back soon!</div>';
+      if (ALL_ITEMS.length === 0) {
+        content.innerHTML = '<div class="empty">Nothing here yet.<br>Check back soon!</div>';
         return;
       }
       if (list.length === 0) {
-        content.innerHTML = '<div class="empty">No products match your search.<br>Try clearing the filters.</div>';
+        content.innerHTML = '<div class="empty">Nothing matches your search.<br>Try clearing the filters.</div>';
         return;
       }
       content.innerHTML =
-        '<div class="result-count">' + list.length + ' product' + (list.length === 1 ? '' : 's') + ' found</div>' +
-        '<div class="grid" style="margin-top:8px;">' +
-        list.map(cardHtml).join('') +
-        '</div>';
+        '<div class="result-count">' + list.length + ' result' + (list.length === 1 ? '' : 's') + '</div>' +
+        '<div class="grid" style="margin-top:8px;">' + list.map(cardHtml).join('') + '</div>';
     }
 
     function cardHtml(p) {
+      const isProduct = (state.type === 'product');
+      const detailPage = isProduct ? 'product.html' : 'listing.html';
+      const link = detailPage + '?id=' + encodeURIComponent(p.id) + (isProduct ? '' : '&type=' + state.type);
+
       const img = p.image_url
-        ? '<img src="' + escapeHtml(p.image_url) + '" alt="' + escapeHtml(p.title || '') + '" loading="lazy" onerror="this.parentNode.innerHTML=\'<div class=&quot;placeholder&quot;>🌾</div>\'">'
+        ? '<img src="' + escapeHtml(p.image_url) + '" alt="" loading="lazy" onerror="this.parentNode.innerHTML=\'<div class=&quot;placeholder&quot;>🌾</div>\'">'
         : '<div class="placeholder">🌾</div>';
 
       const featured = p.is_featured ? '<span class="badge-featured">Featured</span>' : '';
       const price = (p.currency || 'KES') + ' ' + Number(p.price || 0).toLocaleString();
-      const unit = p.unit ? ' / ' + escapeHtml(p.unit) : '';
+      const unit = p.unit && p.unit !== 'unit' ? ' / ' + escapeHtml(p.unit) : '';
       const place = [p.location, p.county].filter(Boolean).join(', ');
 
-      return '<a class="card" href="product.html?id=' + encodeURIComponent(p.id) + '">' +
+      return '<a class="card" href="' + link + '">' +
           '<div class="card-img">' + img + featured + '</div>' +
           '<div class="card-body">' +
             '<div class="card-title">' + escapeHtml(p.title || '(untitled)') + '</div>' +
@@ -430,10 +352,7 @@
 
     function escapeHtml(str) {
       return String(str == null ? '' : str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
   </script>
 </body>
