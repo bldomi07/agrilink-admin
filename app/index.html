@@ -58,8 +58,8 @@
       <span class="logo-text">AgriLink</span>
     </div>
     <div style="display:flex; gap:6px;">
-      <a href="post.html" class="login-btn" id="sellLink" style="display:none; background:#1e7a3c; color:#fff; border-color:#1e7a3c;">+ Post</a>
-      <a href="login.html" class="login-btn" id="authLink">Log in</a>
+      <a href="post.html" class="login-btn" style="background:#1e7a3c; color:#fff; border-color:#1e7a3c;">+ Post</a>
+      <a href="me.html" class="login-btn">My account</a>
     </div>
   </header>
 
@@ -130,22 +130,13 @@
     }, 600);
 
     async function init() {
-      try {
-        const session = await getSession();
-        const authLink = document.getElementById('authLink');
-        const sellLink = document.getElementById('sellLink');
-        if (session) {
-          authLink.textContent = 'My account';
-          authLink.href = 'me.html';
-          if (sellLink) sellLink.style.display = '';
-        } else {
-          authLink.textContent = 'Log in';
-          authLink.href = 'login.html';
-        }
-      } catch (e) {}
+      // LOGIN REQUIRED
+      const session = await requireLogin();
+      if (!session) return;
 
       attachTabHandlers();
       attachFilterHandlers();
+      renderCategoryChips();
       await Promise.all([ loadAds(), loadItems() ]);
     }
 
@@ -183,7 +174,6 @@
       });
     }
 
-    // ---------- Ads ----------
     async function loadAds() {
       try {
         const ads = await getActiveAds('home_top');
@@ -246,7 +236,6 @@
       });
     }
 
-    // ---------- Filters ----------
     function attachFilterHandlers() {
       const searchInput = document.getElementById('searchInput');
       const clearBtn = document.getElementById('clearBtn');
