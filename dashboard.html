@@ -45,6 +45,7 @@
       <button class="tile" data-view="products">📦 Products</button>
       <button class="tile" data-view="reports">🚩 Reports</button>
       <button class="tile" data-view="ads">📣 Ads</button>
+      <button class="tile" data-view="appads">📱 App Ads</button>
     </div>
 
     <div id="view" class="view"></div>
@@ -65,19 +66,20 @@
     }
 
     async function loadView(name) {
-  const view = document.getElementById('view');
-  view.innerHTML = '<p class="small">Loading…</p>';
-  try {
-    if (name === 'settings') return await renderSettings(view);
-    if (name === 'admins')   return await renderAdmins(view);
-    if (name === 'profiles') return await renderProfiles(view);
-    if (name === 'products') return await renderProducts(view);
-    if (name === 'reports')  return await renderReports(view);
-    if (name === 'ads')      return await renderAds(view);
-  } catch (err) {
-    console.error('loadView error:', err);
-    view.innerHTML = '<p class="msg">Error: ' + escapeHtml(err && err.message ? err.message : String(err)) + '</p>';
-  }
+      const view = document.getElementById('view');
+      view.innerHTML = '<p class="small">Loading…</p>';
+      try {
+        if (name === 'settings') return await renderSettings(view);
+        if (name === 'admins')   return await renderAdmins(view);
+        if (name === 'profiles') return await renderProfiles(view);
+        if (name === 'products') return await renderProducts(view);
+        if (name === 'reports')  return await renderReports(view);
+        if (name === 'ads')      return await renderAds(view);
+        if (name === 'appads')   return await renderAppAds(view);
+      } catch (err) {
+        console.error('loadView error:', err);
+        view.innerHTML = '<p class="msg">Error: ' + escapeHtml(err && err.message ? err.message : String(err)) + '</p>';
+      }
     }
 
     async function renderSettings(view) {
@@ -276,9 +278,13 @@
       });
     }
 
+    // ============================================================
+    // WEB ADS (existing - unchanged)
+    // ============================================================
+
     async function renderAds(view) {
       const ads = await getAds();
-      let html = '<h2>Advertisements</h2>';
+      let html = '<h2>Advertisements (Web)</h2>';
 
       html += `
         <details style="margin-bottom:12px;">
@@ -415,6 +421,158 @@
           msg.textContent = '❌ ' + (err.message || 'Failed');
           btn.disabled = false;
           btn.textContent = 'Create ad';
+        }
+      });
+    }
+
+    // ============================================================
+    // APP ADS (new - manages app_advertisements table)
+    // ============================================================
+
+    async function renderAppAds(view) {
+      const { data: ads, error } = await db
+        .from('app_advertisements')
+        .select('*')
+        .order('sort_order', { ascending: true });
+
+      if (error) {
+        view.innerHTML = '<p class="msg">Error: ' + escapeHtml(error.message) + '</p>';
+        return;
+      }
+
+      let html = '<h2>App Advertisements (Mobile)</h2>';
+      html += '<p class="small">Ads shown inside the AgriLink mobile app. Set display time, schedule, and rotation order here.</p>';
+
+      html += `
+        <details style="margin-bottom:12px;">
+          <summary style="cursor:pointer; font-weight:600; color:#1e7a3c;">+ Create new app ad</summary>
+          <form id="appAdCreateForm" style="margin-top:10px;">
+            <label>Title</label>
+            <input id="app_ad_title" required placeholder="e.g. Fresh Harvest Season!">
+
+            <label>Body</label>
+            <textarea id="app_ad_body" rows="3" placeholder="Short message shown in the app"></textarea>
+
+            <label>Button Label</label>
+            <input id="app_ad_button_label" value="📩 Contact Admin">
+
+            <label>Link URL (WhatsApp or web)</label>
+            <input id="app_ad_link_url" type="url" required placeholder="https://wa.me/254…">
+
+            <label>Position</label>
+            <select id="app_ad_position">
+              <option value="home_top">Home — top</option>
+              <option value="home_middle" selected>Home — middle</option>
+              <option value="home_bottom">Home — bottom</option>
+              <option value="splash">Splash</option>
+            </select>
+
+            <label>Sort order (lower = first)</label>
+            <input id="app_ad_sort_order" type="number" value="1">
+
+            <label>Display seconds (5–300)</label>
+            <input id="app_ad_display_seconds" type="number" value="30" min="5" max="300">
+
+            <label>Starts at (optional)</label>
+            <input id="app_ad_starts_at" type="datetime-local">
+
+            <label>Ends at (optional)</label>
+            <input id="app_ad_ends_at" type="datetime-local">
+
+            <label class="check"><input type="checkbox" id="app_ad_is_active" checked> Active</label>
+
+            <button type="submit" id="appAdCreateBtn">Create app ad</button>
+            <p id="appAdCreateMsg" class="small"></p>
+          </form>
+        </details>
+      `;
+
+      if (!ads || ads.length === 0) {
+        html += '<p class="small">No app advertisements yet.</p>';
+        view.innerHTML = html;
+        attachAppAdCreate(view);
+        return;
+      }
+
+      ads.forEach(a => {
+        const starts = a.starts_at ? new Date(a.starts_at).toLocaleString() : '—';
+        const ends = a.ends_at ? new Date(a.ends_at).toLocaleString() : '—';
+        html += `
+          <div class="profile-card">
+            <div class="profile-head">
+              <strong>${escapeHtml(a.title || '(untitled)')}</strong>
+              <span class="badge">${escapeHtml(a.position)}</span>
+              ${a.is_active ? '<span class="badge badge-ok">active</span>' : '<span class="badge badge-warn">inactive</span>'}
+            </div>
+            ${a.body ? '<div class="small">' + escapeHtml(a.body) + '</div>' : ''}
+            ${a.link_url ? '<div class="small">Link: ' + escapeHtml(a.link_url) + '</div>' : ''}
+            <div class="small">Sort: ${a.sort_order ?? 1} · Display: ${a.display_seconds ?? 30}s</div>
+            <div class="small">Starts: ${escapeHtml(starts)} · Ends: ${escapeHtml(ends)}</div>
+            <div class="profile-actions">
+              <button class="btn-sm" data-app-ad-action="toggle" data-id="${a.id}" data-value="${!a.is_active}">
+                ${a.is_active ? 'Deactivate' : 'Activate'}
+              </button>
+              <button class="btn-sm btn-danger" data-app-ad-action="delete" data-id="${a.id}">Delete</button>
+            </div>
+          </div>
+        `;
+      });
+
+      view.innerHTML = html;
+
+      view.querySelectorAll('button[data-app-ad-action]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.id;
+          const action = btn.dataset.appAdAction;
+          const value = btn.dataset.value === 'true';
+          btn.disabled = true; btn.textContent = '…';
+          try {
+            if (action === 'toggle') {
+              await db.from('app_advertisements').update({ is_active: value }).eq('id', id);
+            }
+            if (action === 'delete') {
+              if (!confirm('Delete this app ad?')) { btn.disabled = false; return renderAppAds(view); }
+              await db.from('app_advertisements').delete().eq('id', id);
+            }
+            await renderAppAds(view);
+          } catch (err) { alert('Error: ' + (err.message || 'Failed')); btn.disabled = false; }
+        });
+      });
+
+      attachAppAdCreate(view);
+    }
+
+    function attachAppAdCreate(view) {
+      const form = view.querySelector('#appAdCreateForm');
+      if (!form) return;
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = view.querySelector('#appAdCreateMsg');
+        const btn = view.querySelector('#appAdCreateBtn');
+        msg.textContent = ''; btn.disabled = true;
+
+        try {
+          btn.textContent = 'Creating…';
+          const payload = {
+            title: document.getElementById('app_ad_title').value.trim(),
+            body: document.getElementById('app_ad_body').value.trim() || null,
+            button_label: document.getElementById('app_ad_button_label').value.trim() || '📩 Contact Admin',
+            link_url: document.getElementById('app_ad_link_url').value.trim(),
+            position: document.getElementById('app_ad_position').value,
+            sort_order: Number(document.getElementById('app_ad_sort_order').value) || 1,
+            display_seconds: Number(document.getElementById('app_ad_display_seconds').value) || 30,
+            starts_at: document.getElementById('app_ad_starts_at').value || null,
+            ends_at: document.getElementById('app_ad_ends_at').value || null,
+            is_active: document.getElementById('app_ad_is_active').checked
+          };
+          const { error } = await db.from('app_advertisements').insert(payload);
+          if (error) throw error;
+          await renderAppAds(view);
+        } catch (err) {
+          msg.textContent = '❌ ' + (err.message || 'Failed');
+          btn.disabled = false;
+          btn.textContent = 'Create app ad';
         }
       });
     }
