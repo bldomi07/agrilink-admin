@@ -18,6 +18,7 @@
     .wrap p.sub { color: #666; font-size: 14px; margin: 0 0 16px; }
     label { display: block; margin-top: 14px; font-size: 13px; color: #333; font-weight: 600; }
     input, select, textarea { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; font-family: inherit; }
+    input:disabled, select:disabled { opacity: 0.55; }
     textarea { resize: vertical; min-height: 80px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .photo-box { margin-top: 6px; border: 2px dashed #cfd8d2; border-radius: 12px; padding: 16px; text-align: center; background: #fbfdfb; cursor: pointer; }
@@ -32,8 +33,10 @@
     .msg { margin-top: 12px; font-size: 14px; }
     .msg.error { color: #b00020; }
     .msg.ok    { color: #146c34; }
+    .msg.info  { color: #1e7a3c; font-size: 13px; }
     .other-wrap { display: none; }
     .other-wrap.show { display: block; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
@@ -103,15 +106,30 @@
         </div>
       </div>
 
-      <div class="row">
-        <div>
-          <label>Quantity</label>
-          <input id="quantity" type="number" min="1" step="1" value="1" required>
-        </div>
-        <div>
-          <label>County</label>
-          <input id="county" type="text" placeholder="e.g. Nakuru">
-        </div>
+      <label>Quantity</label>
+      <input id="quantity" type="number" min="1" step="1" value="1" required>
+
+      <label>Country</label>
+      <select id="country" required></select>
+
+      <div id="kenyaBox" class="hidden">
+        <label>County</label>
+        <select id="ke_county"></select>
+        <label>Sub-county</label>
+        <select id="ke_sub" disabled><option value="">— choose county first —</option></select>
+        <label>Ward</label>
+        <select id="ke_ward" disabled><option value="">— choose sub-county first —</option></select>
+      </div>
+
+      <div id="afBox" class="hidden">
+        <label>Province</label>
+        <select id="af_province"></select>
+        <label>District</label>
+        <select id="af_district" disabled><option value="">— choose province first —</option></select>
+      </div>
+
+      <div id="geoBox" class="hidden">
+        <div id="geoLevels"></div>
       </div>
 
       <label>Town / area</label>
@@ -122,138 +140,72 @@
     </form>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="locations.js"></script>
   <script src="supabase.js"></script>
   <script>
-    // ---------- Title options per type, each with an auto category ----------
     const TITLE_OPTIONS = {
       product: [
-        // Grain
-        { t: 'Maize', c: 'grain' },
-        { t: 'Beans', c: 'grain' },
-        { t: 'Rice', c: 'grain' },
-        { t: 'Wheat', c: 'grain' },
-        { t: 'Sorghum', c: 'grain' },
-        { t: 'Millet', c: 'grain' },
-        { t: 'Green grams (Ndengu)', c: 'grain' },
-        { t: 'Groundnuts', c: 'grain' },
-        // Vegetables
-        { t: 'Potatoes', c: 'vegetable' },
-        { t: 'Sweet potatoes', c: 'vegetable' },
-        { t: 'Cassava', c: 'vegetable' },
-        { t: 'Tomatoes', c: 'vegetable' },
-        { t: 'Onions', c: 'vegetable' },
-        { t: 'Cabbage', c: 'vegetable' },
-        { t: 'Kale (Sukuma wiki)', c: 'vegetable' },
-        { t: 'Spinach', c: 'vegetable' },
-        { t: 'Carrots', c: 'vegetable' },
-        { t: 'Peas', c: 'vegetable' },
-        // Fruits
-        { t: 'Bananas', c: 'fruit' },
-        { t: 'Avocado', c: 'fruit' },
-        { t: 'Mangoes', c: 'fruit' },
-        { t: 'Oranges', c: 'fruit' },
-        { t: 'Pineapples', c: 'fruit' },
-        { t: 'Watermelons', c: 'fruit' },
-        { t: 'Pawpaw', c: 'fruit' },
-        { t: 'Passion fruit', c: 'fruit' },
-        // Livestock (mammals)
-        { t: 'Cow', c: 'livestock' },
-        { t: 'Bull', c: 'livestock' },
-        { t: 'Heifer', c: 'livestock' },
-        { t: 'Calf', c: 'livestock' },
-        { t: 'Goat', c: 'livestock' },
-        { t: 'Sheep', c: 'livestock' },
-        { t: 'Ram', c: 'livestock' },
-        { t: 'Pig', c: 'livestock' },
-        { t: 'Sow', c: 'livestock' },
-        { t: 'Rabbit', c: 'livestock' },
+        { t: 'Maize', c: 'grain' },{ t: 'Beans', c: 'grain' },{ t: 'Rice', c: 'grain' },
+        { t: 'Wheat', c: 'grain' },{ t: 'Sorghum', c: 'grain' },{ t: 'Millet', c: 'grain' },
+        { t: 'Green grams (Ndengu)', c: 'grain' },{ t: 'Groundnuts', c: 'grain' },
+        { t: 'Potatoes', c: 'vegetable' },{ t: 'Sweet potatoes', c: 'vegetable' },
+        { t: 'Cassava', c: 'vegetable' },{ t: 'Tomatoes', c: 'vegetable' },
+        { t: 'Onions', c: 'vegetable' },{ t: 'Cabbage', c: 'vegetable' },
+        { t: 'Kale (Sukuma wiki)', c: 'vegetable' },{ t: 'Spinach', c: 'vegetable' },
+        { t: 'Carrots', c: 'vegetable' },{ t: 'Peas', c: 'vegetable' },
+        { t: 'Bananas', c: 'fruit' },{ t: 'Avocado', c: 'fruit' },
+        { t: 'Mangoes', c: 'fruit' },{ t: 'Oranges', c: 'fruit' },
+        { t: 'Pineapples', c: 'fruit' },{ t: 'Watermelons', c: 'fruit' },
+        { t: 'Pawpaw', c: 'fruit' },{ t: 'Passion fruit', c: 'fruit' },
+        { t: 'Cow', c: 'livestock' },{ t: 'Bull', c: 'livestock' },
+        { t: 'Heifer', c: 'livestock' },{ t: 'Calf', c: 'livestock' },
+        { t: 'Goat', c: 'livestock' },{ t: 'Sheep', c: 'livestock' },
+        { t: 'Ram', c: 'livestock' },{ t: 'Pig', c: 'livestock' },
+        { t: 'Sow', c: 'livestock' },{ t: 'Rabbit', c: 'livestock' },
         { t: 'Donkey', c: 'livestock' },
-        // Poultry
-        { t: 'Chicken (broilers)', c: 'poultry' },
-        { t: 'Chicken (layers)', c: 'poultry' },
-        { t: 'Cockerel', c: 'poultry' },
-        { t: 'Hen', c: 'poultry' },
-        { t: 'Duck', c: 'poultry' },
-        { t: 'Turkey', c: 'poultry' },
-        { t: 'Guinea fowl', c: 'poultry' },
-        { t: 'Goose', c: 'poultry' },
-        // Dairy
-        { t: 'Milk', c: 'dairy' },
-        { t: 'Yoghurt', c: 'dairy' },
-        { t: 'Cheese', c: 'dairy' },
-        // Poultry products
+        { t: 'Chicken (broilers)', c: 'poultry' },{ t: 'Chicken (layers)', c: 'poultry' },
+        { t: 'Cockerel', c: 'poultry' },{ t: 'Hen', c: 'poultry' },
+        { t: 'Duck', c: 'poultry' },{ t: 'Turkey', c: 'poultry' },
+        { t: 'Guinea fowl', c: 'poultry' },{ t: 'Goose', c: 'poultry' },
+        { t: 'Milk', c: 'dairy' },{ t: 'Yoghurt', c: 'dairy' },{ t: 'Cheese', c: 'dairy' },
         { t: 'Eggs', c: 'poultry' },
-        // Seeds
-        { t: 'Maize seed', c: 'seed' },
-        { t: 'Bean seed', c: 'seed' },
-        { t: 'Vegetable seedlings', c: 'seed' },
-        { t: 'Fruit seedlings', c: 'seed' },
+        { t: 'Maize seed', c: 'seed' },{ t: 'Bean seed', c: 'seed' },
+        { t: 'Vegetable seedlings', c: 'seed' },{ t: 'Fruit seedlings', c: 'seed' },
         { t: 'Tree seedlings', c: 'seed' },
-        // Other
-        { t: 'Honey', c: 'other' },
-        { t: 'Coffee', c: 'other' },
-        { t: 'Tea', c: 'other' },
-        { t: 'Macadamia', c: 'other' },
-        { t: 'Sunflower', c: 'other' },
-        { t: 'Fish', c: 'other' },
+        { t: 'Honey', c: 'other' },{ t: 'Coffee', c: 'other' },
+        { t: 'Tea', c: 'other' },{ t: 'Macadamia', c: 'other' },
+        { t: 'Sunflower', c: 'other' },{ t: 'Fish', c: 'other' },
         { t: 'Fish fingerlings', c: 'other' }
       ],
       service: [
-        { t: 'Transport / Delivery' },
-        { t: 'Ploughing' },
-        { t: 'Planting' },
-        { t: 'Weeding' },
-        { t: 'Harvesting' },
-        { t: 'Spraying / Pest control' },
-        { t: 'Veterinary services' },
-        { t: 'Artificial insemination (AI)' },
-        { t: 'Extension / Advisory' },
-        { t: 'Soil testing' },
-        { t: 'Irrigation setup' },
-        { t: 'Fencing' },
-        { t: 'Welding / Repairs' },
-        { t: 'Land clearing' },
-        { t: 'Farm labour' }
+        { t: 'Transport / Delivery' },{ t: 'Ploughing' },{ t: 'Planting' },
+        { t: 'Weeding' },{ t: 'Harvesting' },{ t: 'Spraying / Pest control' },
+        { t: 'Veterinary services' },{ t: 'Artificial insemination (AI)' },
+        { t: 'Extension / Advisory' },{ t: 'Soil testing' },{ t: 'Irrigation setup' },
+        { t: 'Fencing' },{ t: 'Welding / Repairs' },{ t: 'Land clearing' },{ t: 'Farm labour' }
       ],
       job: [
-        { t: 'Farm worker' },
-        { t: 'Herdsman' },
-        { t: 'Driver' },
-        { t: 'Machine operator' },
-        { t: 'Security guard' },
-        { t: 'Sales person' },
-        { t: 'Cook' },
-        { t: 'House help' }
+        { t: 'Farm worker' },{ t: 'Herdsman' },{ t: 'Driver' },{ t: 'Machine operator' },
+        { t: 'Security guard' },{ t: 'Sales person' },{ t: 'Cook' },{ t: 'House help' }
       ],
       machinery: [
-        { t: 'Tractor' },
-        { t: 'Plough' },
-        { t: 'Harrow' },
-        { t: 'Planter' },
-        { t: 'Harvester' },
-        { t: 'Trailer' },
-        { t: 'Water pump' },
-        { t: 'Irrigation kit' },
-        { t: 'Milking machine' },
-        { t: 'Chaff cutter' },
-        { t: 'Maize mill' },
-        { t: 'Generator' },
-        { t: 'Sprayer' }
+        { t: 'Tractor' },{ t: 'Plough' },{ t: 'Harrow' },{ t: 'Planter' },
+        { t: 'Harvester' },{ t: 'Trailer' },{ t: 'Water pump' },{ t: 'Irrigation kit' },
+        { t: 'Milking machine' },{ t: 'Chaff cutter' },{ t: 'Maize mill' },
+        { t: 'Generator' },{ t: 'Sprayer' }
       ],
       farm: [
-        { t: 'Farmland for sale' },
-        { t: 'Farmland for lease' },
-        { t: 'Farmland for rent' },
-        { t: 'Ranch' },
-        { t: 'Plot' },
-        { t: 'Greenhouse' },
-        { t: 'Poultry house' },
-        { t: 'Fish pond' }
+        { t: 'Farmland for sale' },{ t: 'Farmland for lease' },{ t: 'Farmland for rent' },
+        { t: 'Ranch' },{ t: 'Plot' },{ t: 'Greenhouse' },{ t: 'Poultry house' },{ t: 'Fish pond' }
       ]
     };
 
     let selectedFile = null;
-    let currentCategory = null; // auto-set from title
+    let currentCategory = null;
+    let keCounties = null;
+    let afProvinces = null;
+    let geoPath = [];
 
     document.addEventListener('DOMContentLoaded', async () => {
       const s = await getSession();
@@ -270,8 +222,7 @@
         const file = e.target.files[0];
         if (!file) return;
         selectedFile = file;
-        document.getElementById('photoPreview').innerHTML =
-          '<img src="' + URL.createObjectURL(file) + '" alt="">';
+        document.getElementById('photoPreview').innerHTML = '<img src="' + URL.createObjectURL(file) + '" alt="">';
         document.getElementById('photoRemove').classList.add('show');
       });
       document.getElementById('photoRemove').addEventListener('click', () => {
@@ -280,6 +231,14 @@
         document.getElementById('photoPreview').innerHTML = '📷';
         document.getElementById('photoRemove').classList.remove('show');
       });
+
+      // Location cascade
+      populateCountries(document.getElementById('country'), 'ke');
+      document.getElementById('country').addEventListener('change', onCountry);
+      document.getElementById('ke_county').addEventListener('change', onKeCounty);
+      document.getElementById('ke_sub').addEventListener('change', onKeSub);
+      document.getElementById('af_province').addEventListener('change', onAfProvince);
+      await onCountry();
 
       document.getElementById('postForm').addEventListener('submit', submit);
     });
@@ -290,20 +249,17 @@
       const sel = document.getElementById('title_select');
       let html = '<option value="">— choose —</option>';
       list.forEach(item => {
-        html += '<option value="' + escAttr(item.t) + '" data-cat="' + escAttr(item.c || '') + '">' +
-                escHtml(item.t) + '</option>';
+        html += '<option value="' + escAttr(item.t) + '" data-cat="' + escAttr(item.c || '') + '">' + escHtml(item.t) + '</option>';
       });
       html += '<option value="__other__" data-cat="">Other (specify)</option>';
       sel.innerHTML = html;
       currentCategory = null;
       onTitleChange();
     }
-
     function onTitleChange() {
       const sel = document.getElementById('title_select');
       const opt = sel.options[sel.selectedIndex];
       const otherWrap = document.getElementById('title_other_wrap');
-
       if (sel.value === '__other__') {
         otherWrap.classList.add('show');
         document.getElementById('title_other').focus();
@@ -315,36 +271,164 @@
       }
     }
 
+    // ---------- Location ----------
+    function showBox(id) {
+      ['kenyaBox','afBox','geoBox'].forEach(x => {
+        document.getElementById(x).classList.toggle('hidden', x !== id);
+      });
+    }
+    async function onCountry() {
+      const code = document.getElementById('country').value;
+      const msg = document.getElementById('msg');
+      msg.className = 'msg'; msg.textContent = '';
+      geoPath = [];
+      document.getElementById('geoLevels').innerHTML = '';
+      if (code === 'ke') { showBox('kenyaBox'); await loadKenya(); }
+      else if (code === 'af') { showBox('afBox'); await loadAf(); }
+      else if (code) { showBox('geoBox'); await loadGeoNamesCountry(code); }
+      else { showBox(''); }
+    }
+    async function loadKenya() {
+      const msg = document.getElementById('msg');
+      const sel = document.getElementById('ke_county');
+      if (keCounties) { fillKenyaCounties(sel); return; }
+      sel.innerHTML = '<option value="">Loading counties…</option>';
+      msg.className = 'msg info'; msg.textContent = 'Loading Kenya locations…';
+      try {
+        keCounties = await loadKenyaHierarchy();
+        fillKenyaCounties(sel);
+        msg.textContent = ''; msg.className = 'msg';
+      } catch (e) {
+        sel.innerHTML = '<option value="">Failed to load</option>';
+        msg.className = 'msg error'; msg.textContent = e.message;
+      }
+    }
+    function fillKenyaCounties(sel) {
+      const items = keCounties.map(c => ({ value: geoName(c), label: geoName(c) }));
+      fillSelect(sel, items, '', '— choose county —');
+    }
+    function onKeCounty() {
+      const name = document.getElementById('ke_county').value;
+      const subSel = document.getElementById('ke_sub');
+      const wardSel = document.getElementById('ke_ward');
+      if (!name) {
+        subSel.innerHTML = '<option value="">— choose county first —</option>'; subSel.disabled = true;
+        wardSel.innerHTML = '<option value="">— choose sub-county first —</option>'; wardSel.disabled = true;
+        return;
+      }
+      const county = keCounties.find(c => geoName(c) === name);
+      const subs = geoChildrenOf(county).map(s => ({ value: geoName(s), label: geoName(s) }));
+      fillSelect(subSel, subs, '', '— choose sub-county —'); subSel.disabled = false;
+      wardSel.innerHTML = '<option value="">— choose sub-county first —</option>'; wardSel.disabled = true;
+    }
+    function onKeSub() {
+      const cname = document.getElementById('ke_county').value;
+      const sname = document.getElementById('ke_sub').value;
+      const wardSel = document.getElementById('ke_ward');
+      if (!cname || !sname) {
+        wardSel.innerHTML = '<option value="">— choose sub-county first —</option>'; wardSel.disabled = true;
+        return;
+      }
+      const county = keCounties.find(c => geoName(c) === cname);
+      const sub = geoChildrenOf(county).find(s => geoName(s) === sname);
+      const wards = wardListOf(sub).map(w => ({ value: geoName(w), label: geoName(w) }));
+      fillSelect(wardSel, wards, '', '— choose ward —'); wardSel.disabled = false;
+    }
+    async function loadAf() {
+      const msg = document.getElementById('msg');
+      const sel = document.getElementById('af_province');
+      if (afProvinces) { fillSelect(sel, afProvinces.map(p => ({ value: geoName(p), label: geoName(p) })), '', '— choose province —'); return; }
+      sel.innerHTML = '<option value="">Loading provinces…</option>';
+      msg.className = 'msg info'; msg.textContent = 'Loading Afghanistan locations…';
+      try {
+        afProvinces = await loadAfghanistanHierarchy();
+        fillSelect(sel, afProvinces.map(p => ({ value: geoName(p), label: geoName(p) })), '', '— choose province —');
+        msg.textContent = ''; msg.className = 'msg';
+      } catch (e) {
+        sel.innerHTML = '<option value="">Failed to load</option>';
+        msg.className = 'msg error'; msg.textContent = e.message;
+      }
+    }
+    function onAfProvince() {
+      const name = document.getElementById('af_province').value;
+      const distSel = document.getElementById('af_district');
+      if (!name) { distSel.innerHTML = '<option value="">— choose province first —</option>'; distSel.disabled = true; return; }
+      const prov = afProvinces.find(p => geoName(p) === name);
+      const districts = (prov.district || prov.districts || []).map(d => ({ value: geoName(d), label: geoName(d) }));
+      fillSelect(distSel, districts, '', '— choose district —'); distSel.disabled = false;
+    }
+    async function loadGeoNamesCountry(code) {
+      const box = document.getElementById('geoLevels');
+      box.innerHTML = '<p class="msg info">Loading regions…</p>';
+      try {
+        const country = await geoCountryInfo(code);
+        if (!country) throw new Error('Country not found');
+        box.innerHTML = '';
+        await renderGeoLevel(0, country.geonameId, 'Region');
+      } catch (e) {
+        box.innerHTML = '<p class="msg error">' + escHtml(e.message) + '</p>';
+      }
+    }
+    async function renderGeoLevel(level, parentId, label) {
+      geoPath = geoPath.slice(0, level);
+      const box = document.getElementById('geoLevels');
+      while (box.children.length > level * 2) box.removeChild(box.lastChild);
+      const lab = document.createElement('label'); lab.textContent = label;
+      const sel = document.createElement('select'); sel.innerHTML = '<option value="">Loading…</option>';
+      box.appendChild(lab); box.appendChild(sel);
+      try {
+        const kids = await geoChildren(parentId);
+        if (!kids.length) { box.removeChild(lab); box.removeChild(sel); return; }
+        fillSelect(sel, kids.map(k => ({ value: k.geonameId, label: k.name })), '', '— choose —');
+        sel.addEventListener('change', async () => {
+          const id = sel.value;
+          const name = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+          if (!id) return;
+          geoPath[level] = { id: id, name: name };
+          const nextLabel = level === 0 ? 'District' : 'County';
+          await renderGeoLevel(level + 1, id, nextLabel);
+        });
+      } catch (e) { box.removeChild(lab); box.removeChild(sel); }
+    }
+
+    // ---------- Submit ----------
     async function submit(e) {
       e.preventDefault();
       const msg = document.getElementById('msg');
       const btn = document.getElementById('submitBtn');
       msg.className = 'msg'; msg.textContent = '';
 
+      const selVal = document.getElementById('title_select').value;
+      let title;
+      if (selVal === '__other__') {
+        title = document.getElementById('title_other').value.trim();
+        if (!title) { msg.className='msg error'; msg.textContent='Please type the title.'; return; }
+      } else if (selVal) { title = selVal; }
+      else { msg.className='msg error'; msg.textContent='Please choose what you are posting.'; return; }
+
+      const code = document.getElementById('country').value;
+      const countryName = (COUNTRIES.find(c => c.c === code) || { n: code }).n;
+      let county = null;
+
+      if (code === 'ke') {
+        county = document.getElementById('ke_county').value || null;
+        if (!county) { msg.className='msg error'; msg.textContent='Please choose your county.'; return; }
+      } else if (code === 'af') {
+        county = document.getElementById('af_province').value || null;
+        if (!county) { msg.className='msg error'; msg.textContent='Please choose your province.'; return; }
+      } else if (code) {
+        if (geoPath[0]) county = geoPath[0].name;
+      } else { msg.className='msg error'; msg.textContent='Please choose a country.'; return; }
+
+      btn.disabled = true; btn.textContent = 'Publishing…';
       try {
-        // Resolve title
-        const selVal = document.getElementById('title_select').value;
-        let title;
-        if (selVal === '__other__') {
-          title = document.getElementById('title_other').value.trim();
-          if (!title) throw new Error('Please type the title.');
-        } else if (selVal) {
-          title = selVal;
-        } else {
-          throw new Error('Please choose what you are posting.');
-        }
-
-        btn.disabled = true; btn.textContent = 'Publishing…';
-
         const type = document.getElementById('type').value;
         const isProduct = (type === 'product');
-
         let image_url = null;
         if (selectedFile) {
           btn.textContent = 'Uploading photo…';
           image_url = await uploadImage(selectedFile, type);
         }
-
         btn.textContent = 'Publishing…';
         const payload = {
           title:       title,
@@ -353,11 +437,11 @@
           price:       Number(document.getElementById('price').value) || 0,
           unit:        document.getElementById('unit').value,
           quantity:    Number(document.getElementById('quantity').value) || 1,
-          county:      document.getElementById('county').value.trim() || null,
+          country:     countryName,
+          county:      county,
           location:    document.getElementById('location').value.trim() || null,
           image_url:   image_url
         };
-
         let created;
         if (isProduct) {
           created = await createProduct(payload);
@@ -374,12 +458,8 @@
       }
     }
 
-    function escHtml(str) {
-      return String(str == null ? '' : str)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-    function escAttr(str) { return escHtml(str); }
+    function escHtml(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function escAttr(s) { return escHtml(s); }
   </script>
 </body>
 </html>
