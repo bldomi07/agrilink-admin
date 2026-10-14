@@ -75,7 +75,7 @@ async function getAdmins() {
 
 async function getProfiles() {
   const r = await db.from('profiles')
-    .select('id, full_name, user_name, phone, email, country, county, sub_county, ward, region, location, roles, is_active, is_verified, is_blocked, created_at');
+    .select('id, full_name, user_name, phone, email, country, county, sub_county, ward, region, town, roles, is_active, is_verified, is_blocked, created_at');
   if (r.error) throw r.error;
   return r.data;
 }
