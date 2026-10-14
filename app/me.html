@@ -23,16 +23,13 @@
     .section-head h2 { font-size: 16px; margin: 0; color: #1e7a3c; }
     .btn-primary { background: #1e7a3c; color: #fff; text-decoration: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; border: 0; cursor: pointer; }
     .btn-outline { background: #fff; color: #1e7a3c; border: 1px solid #1e7a3c; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
-
-    /* Role badges */
     .roles-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .role-badge { background: #e8f3ec; color: #1e7a3c; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
-
-    /* Edit form */
     .edit-form { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid #eee; }
     .edit-form.show { display: block; }
     .edit-form label { display: block; margin-top: 12px; font-size: 13px; color: #333; font-weight: 600; }
-    .edit-form input { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; font-family: inherit; }
+    .edit-form input, .edit-form select { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; font-family: inherit; }
+    .edit-form input:disabled, .edit-form select:disabled { opacity: 0.55; }
     .role-box { margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; padding: 4px 12px; background: #fbfdfb; }
     .role-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #eef3ef; }
     .role-row:last-child { border-bottom: 0; }
@@ -46,8 +43,7 @@
     .edit-msg { margin-top: 10px; font-size: 13px; text-align: center; }
     .edit-msg.ok    { color: #146c34; }
     .edit-msg.error { color: #b00020; }
-
-    /* Listing rows */
+    .edit-msg.info  { color: #1e7a3c; }
     .row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #eee; }
     .row:last-child { border-bottom: 0; }
     .row-img { width: 68px; height: 68px; border-radius: 10px; background: #eef3ef; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #a8bfb0; }
@@ -71,6 +67,7 @@
     .tabs { display: flex; gap: 6px; margin-bottom: 10px; overflow-x: auto; }
     .tab-btn { padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; background: #f1f5f2; color: #555; border: 0; cursor: pointer; white-space: nowrap; }
     .tab-btn.active { background: #1e7a3c; color: #fff; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
@@ -87,22 +84,19 @@
     <p class="loading">Loading…</p>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="locations.js"></script>
   <script src="supabase.js"></script>
   <script>
     const ALL_ROLES = [
-      { v: 'farmer', l: 'Farmer' },
-      { v: 'buyer', l: 'Buyer' },
-      { v: 'seller', l: 'Seller' },
-      { v: 'service_provider', l: 'Service Provider' },
-      { v: 'job_seeker', l: 'Job Seeker' },
-      { v: 'transport_provider', l: 'Transport Provider' },
-      { v: 'machinery_provider', l: 'Machinery Provider' }
+      { v: 'farmer', l: 'Farmer' },{ v: 'buyer', l: 'Buyer' },{ v: 'seller', l: 'Seller' },
+      { v: 'service_provider', l: 'Service Provider' },{ v: 'job_seeker', l: 'Job Seeker' },
+      { v: 'transport_provider', l: 'Transport Provider' },{ v: 'machinery_provider', l: 'Machinery Provider' }
     ];
 
-    let myProfile = null;
-    let myProducts = [];
-    let myListings = [];
+    let myProfile = null, myProducts = [], myListings = [];
     let activeTab = 'products';
+    let keCounties = null, afProvinces = null;
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -111,11 +105,9 @@
       try {
         const session = await getSession();
         if (!session) { window.location.href = 'login.html'; return; }
-
         myProfile = await getMyProfile();
         myProducts = await getMyProducts();
         myListings = await getMyListings();
-
         content.innerHTML = renderPage();
         attachHandlers();
       } catch (err) {
@@ -154,13 +146,35 @@
           <div class="edit-form" id="editForm">
             <form id="profileForm">
               <label>Full name</label>
-              <input id="edit_full_name" type="text" required value="${escapeAttr(myProfile?.full_name || '')}">
-
+              <input id="edit_full_name" type="text" required value="${escapeAttr(myProfile && myProfile.full_name || '')}">
               <label>Phone</label>
-              <input id="edit_phone" type="tel" required value="${escapeAttr(myProfile?.phone || '')}">
+              <input id="edit_phone" type="tel" required value="${escapeAttr(myProfile && myProfile.phone || '')}">
 
-              <label>County</label>
-              <input id="edit_county" type="text" value="${escapeAttr(myProfile?.county || '')}" placeholder="e.g. Nakuru">
+              <label>Country</label>
+              <select id="edit_country"></select>
+
+              <div id="edit_kenyaBox" class="hidden">
+                <label>County</label>
+                <select id="edit_ke_county"></select>
+                <label>Sub-county</label>
+                <select id="edit_ke_sub" disabled><option value="">—</option></select>
+                <label>Ward</label>
+                <select id="edit_ke_ward" disabled><option value="">—</option></select>
+              </div>
+
+              <div id="edit_afBox" class="hidden">
+                <label>Province</label>
+                <select id="edit_af_province"></select>
+                <label>District</label>
+                <select id="edit_af_district" disabled><option value="">—</option></select>
+              </div>
+
+              <div id="edit_geoBox" class="hidden">
+                <div id="edit_geoLevels"></div>
+              </div>
+
+              <label>Town / City / Locality</label>
+              <input id="edit_town" type="text" value="${escapeAttr(myProfile && myProfile.town || '')}">
 
               <label>Roles</label>
               <div class="role-box">
@@ -197,19 +211,13 @@
     }
 
     function renderProducts() {
-      if (!myProducts.length) {
-        return '<div class="empty">You haven\'t posted any products yet.<br><br><a class="btn-primary" href="post.html">+ Post your first product</a></div>';
-      }
+      if (!myProducts.length) return '<div class="empty">You haven\'t posted any products yet.<br><br><a class="btn-primary" href="post.html">+ Post your first product</a></div>';
       return myProducts.map(p => listingRow(p, 'product')).join('');
     }
-
     function renderListings() {
-      if (!myListings.length) {
-        return '<div class="empty">You haven\'t posted any services, jobs, machinery or farms yet.<br><br><a class="btn-primary" href="post.html">+ Post a listing</a></div>';
-      }
+      if (!myListings.length) return '<div class="empty">You haven\'t posted any services, jobs, machinery or farms yet.<br><br><a class="btn-primary" href="post.html">+ Post a listing</a></div>';
       return myListings.map(p => listingRow(p, 'listing')).join('');
     }
-
     function listingRow(p, kind) {
       const img = p.image_url
         ? '<img src="' + escapeHtml(p.image_url) + '" alt="" onerror="this.parentNode.innerHTML=\'🌾\'">'
@@ -223,7 +231,6 @@
       const typeTag = kind === 'listing' && p.type ? '<span class="type-tag">' + escapeHtml(p.type) + '</span>' : '';
       const detailPage = kind === 'product' ? 'product.html' : 'listing.html';
       const detailUrl = detailPage + '?id=' + encodeURIComponent(p.id) + (kind === 'listing' ? '&type=' + p.type : '');
-
       return `
         <div class="row">
           <div class="row-img">${img}</div>
@@ -244,9 +251,7 @@
       const logoutBtn = document.getElementById('logoutBtn');
       if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
-      document.getElementById('editBtn').addEventListener('click', () => {
-        document.getElementById('editForm').classList.add('show');
-      });
+      document.getElementById('editBtn').addEventListener('click', openEdit);
       document.getElementById('cancelEditBtn').addEventListener('click', () => {
         document.getElementById('editForm').classList.remove('show');
       });
@@ -262,38 +267,154 @@
           attachRowHandlers();
         });
       });
-
       attachRowHandlers();
     }
 
     function attachRowHandlers() {
       document.querySelectorAll('button[data-action]').forEach(btn => {
         btn.addEventListener('click', async () => {
-          const id = btn.dataset.id;
-          const kind = btn.dataset.kind;
-          const action = btn.dataset.action;
-          btn.disabled = true;
-          const original = btn.textContent;
-          btn.textContent = '…';
+          const id = btn.dataset.id, kind = btn.dataset.kind, action = btn.dataset.action;
+          btn.disabled = true; const orig = btn.textContent; btn.textContent = '…';
           try {
             if (action === 'delete') {
-              if (!confirm('Delete this permanently?')) {
-                btn.disabled = false; btn.textContent = original; return;
-              }
-              if (kind === 'product') await deleteMyProduct(id);
-              else await deleteMyListing(id);
+              if (!confirm('Delete this permanently?')) { btn.disabled = false; btn.textContent = orig; return; }
+              if (kind === 'product') await deleteMyProduct(id); else await deleteMyListing(id);
             }
             if (action === 'sold') {
-              if (kind === 'product') await markMyProductSold(id);
-              else await markMyListingSold(id);
+              if (kind === 'product') await markMyProductSold(id); else await markMyListingSold(id);
             }
             await init();
-          } catch (err) {
-            alert('Error: ' + (err.message || 'Failed'));
-            btn.disabled = false; btn.textContent = original;
-          }
+          } catch (err) { alert('Error: ' + (err.message || 'Failed')); btn.disabled = false; btn.textContent = orig; }
         });
       });
+    }
+
+    // ---------- Edit profile ----------
+    async function openEdit() {
+      document.getElementById('editForm').classList.add('show');
+
+      const countryName = (myProfile && myProfile.country) || 'Kenya';
+      const c = COUNTRIES.find(x => x.n === countryName) || { c: 'ke' };
+      const countrySel = document.getElementById('edit_country');
+      populateCountries(countrySel, c.c);
+      countrySel.addEventListener('change', () => onEditCountry(false));
+
+      await onEditCountry(true);
+    }
+
+    function showEditBox(id) {
+      ['edit_kenyaBox','edit_afBox','edit_geoBox'].forEach(x => {
+        document.getElementById(x).classList.toggle('hidden', x !== id);
+      });
+    }
+
+    async function onEditCountry(isPrefill) {
+      const code = document.getElementById('edit_country').value;
+      if (code === 'ke') {
+        showEditBox('edit_kenyaBox');
+        await loadKenyaForEdit(isPrefill);
+      } else if (code === 'af') {
+        showEditBox('edit_afBox');
+        await loadAfForEdit(isPrefill);
+      } else if (code) {
+        showEditBox('edit_geoBox');
+        await loadGeoForEdit(code);
+      } else {
+        showEditBox('');
+      }
+    }
+
+    async function loadKenyaForEdit(isPrefill) {
+      const msg = document.getElementById('editMsg');
+      const countySel = document.getElementById('edit_ke_county');
+      const subSel = document.getElementById('edit_ke_sub');
+      const wardSel = document.getElementById('edit_ke_ward');
+      if (!keCounties) {
+        countySel.innerHTML = '<option value="">Loading counties…</option>';
+        msg.className = 'edit-msg info'; msg.textContent = 'Loading Kenya locations…';
+        try { keCounties = await loadKenyaHierarchy(); }
+        catch (e) { countySel.innerHTML = '<option value="">Failed to load</option>'; msg.className='edit-msg error'; msg.textContent = e.message; return; }
+      }
+      fillSelect(countySel, keCounties.map(c => ({ value: geoName(c), label: geoName(c) })), '', '— choose county —');
+      msg.textContent = ''; msg.className = 'edit-msg';
+
+      if (isPrefill && myProfile && myProfile.county) {
+        countySel.value = myProfile.county;
+        // populate sub
+        const county = keCounties.find(c => geoName(c) === myProfile.county);
+        const subs = geoChildrenOf(county).map(s => ({ value: geoName(s), label: geoName(s) }));
+        fillSelect(subSel, subs, '', '— choose sub-county —'); subSel.disabled = false;
+        if (myProfile.sub_county) {
+          subSel.value = myProfile.sub_county;
+          const sub = geoChildrenOf(county).find(s => geoName(s) === myProfile.sub_county);
+          const wards = wardListOf(sub).map(w => ({ value: geoName(w), label: geoName(w) }));
+          fillSelect(wardSel, wards, '', '— choose ward —'); wardSel.disabled = false;
+          if (myProfile.ward) wardSel.value = myProfile.ward;
+        }
+      }
+
+      countySel.onchange = () => {
+        const cname = countySel.value;
+        if (!cname) { subSel.innerHTML = '<option value="">—</option>'; subSel.disabled = true; wardSel.innerHTML = '<option value="">—</option>'; wardSel.disabled = true; return; }
+        const county = keCounties.find(c => geoName(c) === cname);
+        fillSelect(subSel, geoChildrenOf(county).map(s => ({ value: geoName(s), label: geoName(s) })), '', '— choose sub-county —'); subSel.disabled = false;
+        wardSel.innerHTML = '<option value="">—</option>'; wardSel.disabled = true;
+      };
+      subSel.onchange = () => {
+        const cname = countySel.value, sname = subSel.value;
+        if (!cname || !sname) { wardSel.innerHTML = '<option value="">—</option>'; wardSel.disabled = true; return; }
+        const county = keCounties.find(c => geoName(c) === cname);
+        const sub = geoChildrenOf(county).find(s => geoName(s) === sname);
+        fillSelect(wardSel, wardListOf(sub).map(w => ({ value: geoName(w), label: geoName(w) })), '', '— choose ward —'); wardSel.disabled = false;
+      };
+    }
+
+    async function loadAfForEdit(isPrefill) {
+      const msg = document.getElementById('editMsg');
+      const provSel = document.getElementById('edit_af_province');
+      const distSel = document.getElementById('edit_af_district');
+      if (!afProvinces) {
+        provSel.innerHTML = '<option value="">Loading provinces…</option>';
+        msg.className = 'edit-msg info'; msg.textContent = 'Loading Afghanistan locations…';
+        try { afProvinces = await loadAfghanistanHierarchy(); }
+        catch (e) { provSel.innerHTML = '<option value="">Failed to load</option>'; msg.className='edit-msg error'; msg.textContent = e.message; return; }
+      }
+      fillSelect(provSel, afProvinces.map(p => ({ value: geoName(p), label: geoName(p) })), '', '— choose province —');
+      msg.textContent = ''; msg.className = 'edit-msg';
+
+      if (isPrefill && myProfile && myProfile.county) {
+        provSel.value = myProfile.county;
+        const prov = afProvinces.find(p => geoName(p) === myProfile.county);
+        const districts = (prov.district || prov.districts || []).map(d => ({ value: geoName(d), label: geoName(d) }));
+        fillSelect(distSel, districts, '', '— choose district —'); distSel.disabled = false;
+        if (myProfile.sub_county) distSel.value = myProfile.sub_county;
+      }
+
+      provSel.onchange = () => {
+        const name = provSel.value;
+        if (!name) { distSel.innerHTML = '<option value="">—</option>'; distSel.disabled = true; return; }
+        const prov = afProvinces.find(p => geoName(p) === name);
+        const districts = (prov.district || prov.districts || []).map(d => ({ value: geoName(d), label: geoName(d) }));
+        fillSelect(distSel, districts, '', '— choose district —'); distSel.disabled = false;
+      };
+    }
+
+    async function loadGeoForEdit(code) {
+      const box = document.getElementById('edit_geoLevels');
+      box.innerHTML = '<p class="edit-msg info">Loading regions…</p>';
+      try {
+        const country = await geoCountryInfo(code);
+        if (!country) throw new Error('Country not found');
+        box.innerHTML = '';
+        // Just a single-level region picker for edit (simplified)
+        const lab = document.createElement('label'); lab.textContent = 'Region';
+        const sel = document.createElement('select'); sel.innerHTML = '<option value="">Loading…</option>';
+        box.appendChild(lab); box.appendChild(sel);
+        const kids = await geoChildren(country.geonameId);
+        fillSelect(sel, kids.map(k => ({ value: k.geonameId, label: k.name })), '', '— choose —');
+      } catch (e) {
+        box.innerHTML = '<p class="edit-msg error">' + escapeHtml(e.message) + '</p>';
+      }
     }
 
     async function saveProfile(e) {
@@ -302,26 +423,43 @@
       const btn = document.getElementById('saveBtn');
       msg.className = 'edit-msg'; msg.textContent = '';
 
+      const code = document.getElementById('edit_country').value;
+      const countryName = (COUNTRIES.find(c => c.c === code) || { n: code }).n;
+
       const roles = [];
-      document.querySelectorAll('.role-box input[type=checkbox]').forEach(cb => {
-        if (cb.checked) roles.push(cb.value);
-      });
-      if (roles.length === 0) {
-        msg.className = 'edit-msg error';
-        msg.textContent = 'Please tick at least one role.';
-        return;
+      document.querySelectorAll('.role-box input[type=checkbox]').forEach(cb => { if (cb.checked) roles.push(cb.value); });
+      if (!roles.length) { msg.className='edit-msg error'; msg.textContent='Please tick at least one role.'; return; }
+
+      let county = null, sub_county = null, ward = null, region = null;
+      if (code === 'ke') {
+        county = document.getElementById('edit_ke_county').value || null;
+        sub_county = document.getElementById('edit_ke_sub').value || null;
+        ward = document.getElementById('edit_ke_ward').value || null;
+      } else if (code === 'af') {
+        county = document.getElementById('edit_af_province').value || null;
+        sub_county = document.getElementById('edit_af_district').value || null;
+      } else if (code) {
+        const sel = document.querySelector('#edit_geoLevels select');
+        if (sel && sel.value) {
+          const opt = sel.options[sel.selectedIndex];
+          region = opt ? opt.text : null;
+        }
       }
 
       btn.disabled = true; btn.textContent = 'Saving…';
       try {
         const s = await getSession();
         const r = await db.from('profiles').update({
-          full_name: document.getElementById('edit_full_name').value.trim(),
-          phone:     document.getElementById('edit_phone').value.trim(),
-          county:    document.getElementById('edit_county').value.trim() || null,
-          roles:     roles
+          full_name:  document.getElementById('edit_full_name').value.trim(),
+          phone:      document.getElementById('edit_phone').value.trim(),
+          country:    countryName,
+          county:     county,
+          sub_county: sub_county,
+          ward:       ward,
+          region:     region,
+          town:       document.getElementById('edit_town').value.trim() || null,
+          roles:      roles
         }).eq('id', s.user.id).select();
-
         if (r.error) throw r.error;
         msg.className = 'edit-msg ok';
         msg.textContent = '✅ Saved.';
@@ -335,11 +473,8 @@
       }
     }
 
-    function escapeHtml(str) {
-      return String(str == null ? '' : str)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-    function escapeAttr(str) { return escapeHtml(str); }
+    function escapeHtml(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function escapeAttr(s) { return escapeHtml(s); }
   </script>
 </body>
 </html>
