@@ -32,6 +32,7 @@
       <button class="tile" data-view="listings">📋 Listings</button>
       <button class="tile" data-view="reports">🚩 Reports</button>
       <button class="tile" data-view="ads">📣 Ads</button>
+      <a class="tile" href="app-ads.html">📱 App Ads</a>
     </div>
 
     <div id="view" class="view"></div>
@@ -226,7 +227,7 @@
       });
     }
 
-    // ---------------- LISTINGS (services, jobs, machinery, farms) ----------------
+    // ---------------- LISTINGS ----------------
     async function renderListings(view) {
       const listings = await getAdminListings();
       if (!listings || listings.length === 0) {
@@ -325,10 +326,10 @@
       });
     }
 
-    // ---------------- ADS ----------------
+    // ---------------- ADS (webpage) ----------------
     async function renderAds(view) {
       const ads = await getAds();
-      let html = '<h2>Advertisements</h2>';
+      let html = '<h2>Webpage Advertisements</h2>';
 
       html += `
         <details style="margin-bottom:12px;">
