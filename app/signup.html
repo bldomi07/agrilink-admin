@@ -18,6 +18,7 @@
     .auth-wrap p.sub { color: #666; font-size: 14px; margin: 0 0 18px; }
     label { display: block; margin-top: 14px; font-size: 13px; color: #333; font-weight: 600; }
     input, select { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; font-family: inherit; }
+    input:disabled, select:disabled { opacity: 0.55; }
     .role-box { margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; padding: 4px 12px; background: #fbfdfb; }
     .role-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #eef3ef; }
     .role-row:last-child { border-bottom: 0; }
@@ -28,8 +29,10 @@
     .msg { margin-top: 12px; font-size: 14px; min-height: 18px; }
     .msg.error { color: #b00020; }
     .msg.ok    { color: #146c34; }
+    .msg.info  { color: #1e7a3c; font-size: 13px; }
     .switch { text-align: center; margin-top: 18px; font-size: 14px; color: #666; }
     .switch a { color: #1e7a3c; font-weight: 600; text-decoration: none; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
@@ -56,8 +59,34 @@
       <label>Email</label>
       <input id="email" type="email" required>
 
-      <label>County</label>
-      <input id="county" type="text" placeholder="e.g. Nakuru">
+      <label>Country</label>
+      <select id="country" required></select>
+
+      <!-- Kenya cascade -->
+      <div id="kenyaBox" class="hidden">
+        <label>County</label>
+        <select id="ke_county"></select>
+        <label>Sub-county</label>
+        <select id="ke_sub" disabled><option value="">— choose county first —</option></select>
+        <label>Ward</label>
+        <select id="ke_ward" disabled><option value="">— choose sub-county first —</option></select>
+      </div>
+
+      <!-- Afghanistan cascade -->
+      <div id="afBox" class="hidden">
+        <label>Province</label>
+        <select id="af_province"></select>
+        <label>District</label>
+        <select id="af_district" disabled><option value="">— choose province first —</option></select>
+      </div>
+
+      <!-- Other countries dynamic cascade -->
+      <div id="geoBox" class="hidden">
+        <div id="geoLevels"></div>
+      </div>
+
+      <label>Town / City / Locality</label>
+      <input id="town" type="text" placeholder="e.g. Mbale">
 
       <label>I am a… (tick all that apply)</label>
       <div class="role-box">
@@ -80,38 +109,255 @@
     <p class="switch">Already have an account? <a href="login.html">Log in</a></p>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="locations.js"></script>
   <script src="supabase.js"></script>
   <script>
-    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+    let keCounties = null;
+    let afProvinces = null;
+    let geoCountry = null;
+    let geoPath = []; // [{id, name}, ...]
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init() {
+      const countrySel = document.getElementById('country');
+      populateCountries(countrySel, 'ke');
+      countrySel.addEventListener('change', onCountry);
+      document.getElementById('ke_county').addEventListener('change', onKeCounty);
+      document.getElementById('ke_sub').addEventListener('change', onKeSub);
+      document.getElementById('af_province').addEventListener('change', onAfProvince);
+      document.getElementById('signupForm').addEventListener('submit', submit);
+      onCountry();
+    }
+
+    function showBox(id) {
+      ['kenyaBox','afBox','geoBox'].forEach(x => {
+        document.getElementById(x).classList.toggle('hidden', x !== id);
+      });
+    }
+
+    async function onCountry() {
+      const code = document.getElementById('country').value;
+      const msg = document.getElementById('msg');
+      msg.className = 'msg'; msg.textContent = '';
+      geoPath = [];
+      document.getElementById('geoLevels').innerHTML = '';
+
+      if (code === 'ke') {
+        showBox('kenyaBox');
+        await loadKenya();
+      } else if (code === 'af') {
+        showBox('afBox');
+        await loadAf();
+      } else if (code) {
+        showBox('geoBox');
+        await loadGeoNamesCountry(code);
+      } else {
+        showBox('');
+      }
+    }
+
+    // ---------- Kenya ----------
+    async function loadKenya() {
+      const msg = document.getElementById('msg');
+      const sel = document.getElementById('ke_county');
+      if (keCounties) { fillKenyaCounties(sel); return; }
+      sel.innerHTML = '<option value="">Loading counties…</option>';
+      msg.className = 'msg info';
+      msg.textContent = 'Loading Kenya locations (first time only)…';
+      try {
+        keCounties = await loadKenyaHierarchy();
+        fillKenyaCounties(sel);
+        msg.textContent = ''; msg.className = 'msg';
+      } catch (e) {
+        sel.innerHTML = '<option value="">Failed to load</option>';
+        msg.className = 'msg error';
+        msg.textContent = e.message;
+      }
+    }
+
+    function fillKenyaCounties(sel) {
+      const items = keCounties.map(c => ({ value: geoName(c), label: geoName(c) }));
+      fillSelect(sel, items, '', '— choose county —');
+    }
+
+    function onKeCounty() {
+      const name = document.getElementById('ke_county').value;
+      const subSel = document.getElementById('ke_sub');
+      const wardSel = document.getElementById('ke_ward');
+      if (!name) {
+        subSel.innerHTML = '<option value="">— choose county first —</option>';
+        subSel.disabled = true;
+        wardSel.innerHTML = '<option value="">— choose sub-county first —</option>';
+        wardSel.disabled = true;
+        return;
+      }
+      const county = keCounties.find(c => geoName(c) === name);
+      const subs = geoChildrenOf(county).map(s => ({ value: geoName(s), label: geoName(s) }));
+      fillSelect(subSel, subs, '', '— choose sub-county —');
+      subSel.disabled = false;
+      wardSel.innerHTML = '<option value="">— choose sub-county first —</option>';
+      wardSel.disabled = true;
+    }
+
+    function onKeSub() {
+      const cname = document.getElementById('ke_county').value;
+      const sname = document.getElementById('ke_sub').value;
+      const wardSel = document.getElementById('ke_ward');
+      if (!cname || !sname) {
+        wardSel.innerHTML = '<option value="">— choose sub-county first —</option>';
+        wardSel.disabled = true;
+        return;
+      }
+      const county = keCounties.find(c => geoName(c) === cname);
+      const sub = geoChildrenOf(county).find(s => geoName(s) === sname);
+      const wards = wardListOf(sub).map(w => ({ value: geoName(w), label: geoName(w) }));
+      fillSelect(wardSel, wards, '', '— choose ward —');
+      wardSel.disabled = false;
+    }
+
+    // ---------- Afghanistan ----------
+    async function loadAf() {
+      const msg = document.getElementById('msg');
+      const sel = document.getElementById('af_province');
+      if (afProvinces) { fillAf(sel); return; }
+      sel.innerHTML = '<option value="">Loading provinces…</option>';
+      msg.className = 'msg info'; msg.textContent = 'Loading Afghanistan locations…';
+      try {
+        afProvinces = await loadAfghanistanHierarchy();
+        fillAf(sel);
+        msg.textContent = ''; msg.className = 'msg';
+      } catch (e) {
+        sel.innerHTML = '<option value="">Failed to load</option>';
+        msg.className = 'msg error'; msg.textContent = e.message;
+      }
+    }
+    function fillAf(sel) {
+      const items = afProvinces.map(p => ({ value: geoName(p), label: geoName(p) }));
+      fillSelect(sel, items, '', '— choose province —');
+    }
+    function onAfProvince() {
+      const name = document.getElementById('af_province').value;
+      const distSel = document.getElementById('af_district');
+      if (!name) {
+        distSel.innerHTML = '<option value="">— choose province first —</option>';
+        distSel.disabled = true;
+        return;
+      }
+      const prov = afProvinces.find(p => geoName(p) === name);
+      const districts = (prov.district || prov.districts || []).map(d => ({ value: geoName(d), label: geoName(d) }));
+      fillSelect(distSel, districts, '', '— choose district —');
+      distSel.disabled = false;
+    }
+
+    // ---------- Other countries (GeoNames) ----------
+    async function loadGeoNamesCountry(code) {
+      const msg = document.getElementById('msg');
+      const box = document.getElementById('geoLevels');
+      box.innerHTML = '<p class="msg info">Loading regions…</p>';
+      try {
+        geoCountry = await geoCountryInfo(code);
+        if (!geoCountry) throw new Error('Country not found');
+        box.innerHTML = '';
+        await renderGeoLevel(0, geoCountry.geonameId, 'Region');
+      } catch (e) {
+        box.innerHTML = '<p class="msg error">' + escapeHtml(e.message) + '</p>';
+      }
+    }
+
+    async function renderGeoLevel(level, parentId, label) {
+      // Clear any levels deeper than this
+      geoPath = geoPath.slice(0, level);
+      const box = document.getElementById('geoLevels');
+      // Remove deeper DOM
+      while (box.children.length > level * 2) box.removeChild(box.lastChild);
+
+      // Create select
+      const lab = document.createElement('label');
+      lab.textContent = label;
+      const sel = document.createElement('select');
+      sel.id = 'geo_level_' + level;
+      sel.innerHTML = '<option value="">Loading…</option>';
+      box.appendChild(lab);
+      box.appendChild(sel);
+
+      try {
+        const kids = await geoChildren(parentId);
+        if (!kids.length) {
+          // No more levels
+          box.removeChild(lab); box.removeChild(sel);
+          return;
+        }
+        const items = kids.map(k => ({ value: k.geonameId, label: k.name }));
+        fillSelect(sel, items, '', '— choose —');
+        sel.addEventListener('change', async () => {
+          const id = sel.value;
+          const name = sel.options[sel.selectedIndex]?.text || '';
+          if (!id) return;
+          geoPath[level] = { id: id, name: name };
+          const nextLabel = level === 0 ? 'District' : 'County';
+          await renderGeoLevel(level + 1, id, nextLabel);
+        });
+      } catch (e) {
+        box.removeChild(lab); box.removeChild(sel);
+      }
+    }
+
+    // ---------- Submit ----------
+    async function submit(e) {
       e.preventDefault();
       const msg = document.getElementById('msg');
       const btn = document.getElementById('submitBtn');
-      msg.className = 'msg';
-      msg.textContent = '';
+      msg.className = 'msg'; msg.textContent = '';
 
-      // Collect all ticked roles
+      const code = document.getElementById('country').value;
+      const countryName = (COUNTRIES.find(c => c.c === code) || { n: code }).n;
+
       const roles = [];
       document.querySelectorAll('.role-box input[type=checkbox]').forEach(cb => {
         if (cb.checked) roles.push(cb.value);
       });
-
-      if (roles.length === 0) {
-        msg.className = 'msg error';
-        msg.textContent = 'Please tick at least one role.';
-        return;
+      if (!roles.length) {
+        msg.className='msg error'; msg.textContent='Please tick at least one role.'; return;
       }
 
-      btn.disabled = true;
-      btn.textContent = 'Creating account…';
+      let county = null, sub_county = null, ward = null, region = null;
 
+      if (code === 'ke') {
+        county = document.getElementById('ke_county').value || null;
+        sub_county = document.getElementById('ke_sub').value || null;
+        ward = document.getElementById('ke_ward').value || null;
+        if (!county) { msg.className='msg error'; msg.textContent='Please choose your county.'; return; }
+      } else if (code === 'af') {
+        county = document.getElementById('af_province').value || null;   // store province in county
+        sub_county = document.getElementById('af_district').value || null;
+        if (!county) { msg.className='msg error'; msg.textContent='Please choose your province.'; return; }
+      } else if (code) {
+        // Concatenate GeoNames path into county/sub_county/ward
+        if (geoPath[0]) county = geoPath[0].name;
+        if (geoPath[1]) sub_county = geoPath[1].name;
+        if (geoPath[2]) ward = geoPath[2].name;
+      } else {
+        msg.className='msg error'; msg.textContent='Please choose a country.'; return;
+      }
+
+      const town = document.getElementById('town').value.trim() || null;
+
+      btn.disabled = true; btn.textContent = 'Creating account…';
       try {
         await signUp({
-          full_name: document.getElementById('full_name').value.trim(),
-          phone:     document.getElementById('phone').value.trim(),
-          email:     document.getElementById('email').value.trim(),
-          county:    document.getElementById('county').value.trim(),
-          roles:     roles,
-          password:  document.getElementById('password').value
+          full_name:  document.getElementById('full_name').value.trim(),
+          phone:      document.getElementById('phone').value.trim(),
+          email:      document.getElementById('email').value.trim(),
+          country:    countryName,
+          county:     county,
+          sub_county: sub_county,
+          ward:       ward,
+          region:     region,
+          town:       town,
+          roles:      roles,
+          password:   document.getElementById('password').value
         });
         msg.className = 'msg ok';
         msg.textContent = '✅ Account created. Redirecting to login…';
@@ -120,10 +366,14 @@
         msg.className = 'msg error';
         msg.textContent = err.message || 'Signup failed.';
       } finally {
-        btn.disabled = false;
-        btn.textContent = 'Create account';
+        btn.disabled = false; btn.textContent = 'Create account';
       }
-    });
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
   </script>
 </body>
 </html>
