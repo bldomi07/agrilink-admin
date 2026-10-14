@@ -54,7 +54,6 @@
     <p class="sub">Products · Services · Jobs · Machinery · Farms</p>
 
     <form id="postForm">
-
       <label>What are you posting?</label>
       <select id="type" required>
         <option value="product">Product — for sale</option>
@@ -232,7 +231,6 @@
         document.getElementById('photoRemove').classList.remove('show');
       });
 
-      // Location cascade
       populateCountries(document.getElementById('country'), 'ke');
       document.getElementById('country').addEventListener('change', onCountry);
       document.getElementById('ke_county').addEventListener('change', onKeCounty);
@@ -271,7 +269,6 @@
       }
     }
 
-    // ---------- Location ----------
     function showBox(id) {
       ['kenyaBox','afBox','geoBox'].forEach(x => {
         document.getElementById(x).classList.toggle('hidden', x !== id);
@@ -391,7 +388,6 @@
       } catch (e) { box.removeChild(lab); box.removeChild(sel); }
     }
 
-    // ---------- Submit ----------
     async function submit(e) {
       e.preventDefault();
       const msg = document.getElementById('msg');
@@ -408,16 +404,20 @@
 
       const code = document.getElementById('country').value;
       const countryName = (COUNTRIES.find(c => c.c === code) || { n: code }).n;
-      let county = null;
+
+      let county = null, sub_county = null, ward = null, region = null;
 
       if (code === 'ke') {
-        county = document.getElementById('ke_county').value || null;
+        county     = document.getElementById('ke_county').value || null;
+        sub_county = document.getElementById('ke_sub').value || null;
+        ward       = document.getElementById('ke_ward').value || null;
         if (!county) { msg.className='msg error'; msg.textContent='Please choose your county.'; return; }
       } else if (code === 'af') {
-        county = document.getElementById('af_province').value || null;
+        county     = document.getElementById('af_province').value || null;
+        sub_county = document.getElementById('af_district').value || null;
         if (!county) { msg.className='msg error'; msg.textContent='Please choose your province.'; return; }
       } else if (code) {
-        if (geoPath[0]) county = geoPath[0].name;
+        if (geoPath[0]) region = geoPath[0].name;
       } else { msg.className='msg error'; msg.textContent='Please choose a country.'; return; }
 
       btn.disabled = true; btn.textContent = 'Publishing…';
@@ -439,6 +439,9 @@
           quantity:    Number(document.getElementById('quantity').value) || 1,
           country:     countryName,
           county:      county,
+          sub_county:  sub_county,
+          ward:        ward,
+          region:      region,
           location:    document.getElementById('location').value.trim() || null,
           image_url:   image_url
         };
