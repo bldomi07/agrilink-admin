@@ -136,7 +136,7 @@
       profiles.forEach(p => {
         const name = escapeHtml(p.full_name || p.user_name || '(no name)');
         const roles = Array.isArray(p.roles) ? p.roles.join(', ') : (p.roles ? JSON.stringify(p.roles) : '');
-        const locParts = [p.location, p.ward, p.sub_county, p.county, p.country].filter(Boolean);
+        const locParts = [p.town, p.ward, p.sub_county, p.county, p.country].filter(Boolean);
         const loc = locParts.length ? locParts.join(', ') : '—';
         html += `
           <div class="profile-card">
