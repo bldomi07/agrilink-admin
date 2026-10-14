@@ -20,7 +20,7 @@ async function uploadImage(file, prefix) {
   return data.publicUrl;
 }
 
-async function signUp({ email, password, full_name, phone, county, roles }) {
+async function signUp({ email, password, full_name, phone, country, county, sub_county, ward, region, town, roles }) {
   const r = await db.auth.signUp({ email, password, options: { data: { full_name, phone } } });
   if (r.error) throw r.error;
   if (r.data && r.data.user) {
@@ -29,7 +29,12 @@ async function signUp({ email, password, full_name, phone, county, roles }) {
     const rolesArray = Array.isArray(roles) && roles.length ? roles : ['farmer'];
     const profileData = {
       id: uid, full_name, phone, email,
-      county: county || null, country: 'Kenya',
+      country: country || 'Kenya',
+      county: county || null,
+      sub_county: sub_county || null,
+      ward: ward || null,
+      region: region || null,
+      location: town || null,
       roles: rolesArray,
       is_active: true, is_blocked: false, is_verified: false
     };
@@ -81,7 +86,7 @@ async function getMyProfile() {
 
 async function getPublicProducts() {
   const r = await db.from('products')
-    .select('id, title, description, category, price, currency, quantity, unit, county, location, country, status, is_featured, created_at, seller_id, seller_name, seller_phone, image_url')
+    .select('id, title, description, category, price, currency, quantity, unit, country, county, sub_county, ward, region, location, status, is_featured, created_at, seller_id, seller_name, seller_phone, image_url')
     .eq('status', 'active')
     .order('is_featured', { ascending: false })
     .order('created_at', { ascending: false });
@@ -97,7 +102,7 @@ async function getPublicProduct(id) {
 
 async function getPublicListings(type) {
   let q = db.from('listings')
-    .select('id, type, title, description, category, price, currency, quantity, unit, county, location, country, status, is_featured, created_at, seller_id, seller_name, seller_phone, image_url')
+    .select('id, type, title, description, category, price, currency, quantity, unit, country, county, sub_county, ward, region, location, status, is_featured, created_at, seller_id, seller_name, seller_phone, image_url')
     .eq('status', 'active')
     .order('is_featured', { ascending: false })
     .order('created_at', { ascending: false });
@@ -157,7 +162,7 @@ async function getMyProducts() {
   const s = await getSession();
   if (!s) throw new Error('Not signed in');
   const r = await db.from('products')
-    .select('id, title, category, price, currency, quantity, unit, county, location, status, is_featured, image_url, created_at')
+    .select('id, title, category, price, currency, quantity, unit, country, county, sub_county, ward, region, location, status, is_featured, image_url, created_at')
     .eq('seller_id', s.user.id)
     .order('created_at', { ascending: false });
   if (r.error) throw r.error;
@@ -187,7 +192,7 @@ async function getMyListings() {
   const s = await getSession();
   if (!s) throw new Error('Not signed in');
   const r = await db.from('listings')
-    .select('id, type, title, category, price, currency, quantity, unit, county, location, status, is_featured, image_url, created_at')
+    .select('id, type, title, category, price, currency, quantity, unit, country, county, sub_county, ward, region, location, status, is_featured, image_url, created_at')
     .eq('seller_id', s.user.id)
     .order('created_at', { ascending: false });
   if (r.error) throw r.error;
