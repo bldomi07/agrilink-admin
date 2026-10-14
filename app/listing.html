@@ -54,7 +54,6 @@
     document.addEventListener('DOMContentLoaded', load);
 
     async function load() {
-      // LOGIN REQUIRED
       const sess = await requireLogin();
       if (!sess) return;
 
@@ -67,7 +66,6 @@
         const p = await getPublicListing(id);
         if (!p) { content.innerHTML = '<div class="error">Listing not found.</div>'; return; }
         if (p.status === 'blocked') { content.innerHTML = '<div class="error">This listing is no longer available.</div>'; return; }
-
         document.title = (p.title || 'Listing') + ' — AgriLink';
         content.innerHTML = render(p);
       } catch (err) {
@@ -85,7 +83,11 @@
       const unit = p.unit && p.unit !== 'unit' ? ' / ' + escapeHtml(p.unit) : '';
       const quantity = (p.quantity && p.quantity !== 1)
         ? '<p class="meta">Quantity: <strong>' + escapeHtml(p.quantity) + ' ' + escapeHtml(p.unit || '') + '</strong></p>' : '';
-      const place = [p.location, p.county, p.country].filter(Boolean).join(', ');
+
+      const fullLocation = [p.ward, p.sub_county, p.county, p.country].filter(Boolean).join(', ');
+      const fallbackLocation = [p.location, p.county, p.country].filter(Boolean).join(', ');
+      const place = fullLocation || fallbackLocation;
+
       const category = p.category ? '<p class="meta">Category: <strong>' + escapeHtml(p.category) + '</strong></p>' : '';
       const sellerName = p.seller_name ? escapeHtml(p.seller_name) : 'AgriLink Seller';
       const phoneRaw = (p.seller_phone || '').replace(/[^0-9]/g, '');
@@ -110,6 +112,7 @@
           <div class="price">${escapeHtml(price)}${unit}</div>
           ${quantity}
           <p class="meta">Location: <strong>${escapeHtml(place || '—')}</strong></p>
+          ${p.location ? '<p class="meta">Town: ' + escapeHtml(p.location) + '</p>' : ''}
           ${category}
         </div>
         ${p.description ? '<div class="section"><h3>Description</h3><p>' + escapeHtml(p.description) + '</p></div>' : ''}
@@ -123,8 +126,7 @@
     }
 
     function escapeHtml(str) {
-      return String(str == null ? '' : str)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      return String(str == null ? '' : str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
   </script>
 </body>
