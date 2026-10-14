@@ -118,8 +118,17 @@
     function renderPage() {
       const name = myProfile && myProfile.full_name ? myProfile.full_name : 'AgriLink user';
       const phone = myProfile && myProfile.phone ? myProfile.phone : '';
-      const county = myProfile && myProfile.county ? myProfile.county : '';
       const roles = (myProfile && Array.isArray(myProfile.roles)) ? myProfile.roles : [];
+
+      // Build full location string
+      const locParts = [
+        myProfile && myProfile.location,
+        myProfile && myProfile.ward,
+        myProfile && myProfile.sub_county,
+        myProfile && myProfile.county,
+        myProfile && myProfile.country
+      ].filter(Boolean);
+      const locLine = locParts.length ? locParts.join(', ') : '';
 
       const roleBadges = roles.length
         ? '<div class="roles-list">' + roles.map(r => {
@@ -134,7 +143,7 @@
             <div>
               <h1>${escapeHtml(name)}</h1>
               ${phone ? '<p class="meta">' + escapeHtml(phone) + '</p>' : ''}
-              ${county ? '<p class="meta">' + escapeHtml(county) + '</p>' : ''}
+              ${locLine ? '<p class="meta">' + escapeHtml(locLine) + '</p>' : ''}
             </div>
             <button class="logout-btn" id="logoutBtn">Log out</button>
           </div>
@@ -174,7 +183,7 @@
               </div>
 
               <label>Town / City / Locality</label>
-              <input id="edit_town" type="text" value="${escapeAttr(myProfile && myProfile.town || '')}">
+              <input id="edit_town" type="text" value="${escapeAttr(myProfile && myProfile.location || '')}">
 
               <label>Roles</label>
               <div class="role-box">
@@ -224,7 +233,7 @@
         : '🌾';
       const price = (p.currency || 'KES') + ' ' + Number(p.price || 0).toLocaleString();
       const unit = p.unit && p.unit !== 'unit' ? ' / ' + escapeHtml(p.unit) : '';
-      const place = [p.location, p.county].filter(Boolean).join(', ');
+      const place = [p.location, p.ward, p.sub_county, p.county].filter(Boolean).join(', ');
       const status = p.status || 'active';
       const statusBadge = '<span class="status-badge status-' + status + '">' + status + '</span>';
       const soldBtn = status === 'active' ? '<button data-action="sold" data-kind="' + kind + '" data-id="' + p.id + '">Mark sold</button>' : '';
@@ -289,7 +298,6 @@
       });
     }
 
-    // ---------- Edit profile ----------
     async function openEdit() {
       document.getElementById('editForm').classList.add('show');
 
@@ -340,7 +348,6 @@
 
       if (isPrefill && myProfile && myProfile.county) {
         countySel.value = myProfile.county;
-        // populate sub
         const county = keCounties.find(c => geoName(c) === myProfile.county);
         const subs = geoChildrenOf(county).map(s => ({ value: geoName(s), label: geoName(s) }));
         fillSelect(subSel, subs, '', '— choose sub-county —'); subSel.disabled = false;
@@ -406,7 +413,6 @@
         const country = await geoCountryInfo(code);
         if (!country) throw new Error('Country not found');
         box.innerHTML = '';
-        // Just a single-level region picker for edit (simplified)
         const lab = document.createElement('label'); lab.textContent = 'Region';
         const sel = document.createElement('select'); sel.innerHTML = '<option value="">Loading…</option>';
         box.appendChild(lab); box.appendChild(sel);
@@ -457,7 +463,7 @@
           sub_county: sub_county,
           ward:       ward,
           region:     region,
-          town:       document.getElementById('edit_town').value.trim() || null,
+          location:   document.getElementById('edit_town').value.trim() || null,
           roles:      roles
         }).eq('id', s.user.id).select();
         if (r.error) throw r.error;
