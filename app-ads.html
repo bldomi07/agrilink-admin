@@ -38,7 +38,6 @@
   .back-link { text-decoration:none; padding:10px 16px; border-radius:10px;
                border:1.5px solid #2e7d32; color:#2e7d32; font-weight:600; font-size:14px; }
 
-  /* Upload boxes */
   .upload-box {
     margin: 4px 0 4px;
     border: 2px dashed #c8e6c9;
@@ -99,12 +98,13 @@
       <label>Button Label</label>
       <input id="f_button_label" value="📩 Contact Admin">
 
-      <label>Ad Photo (shown in the box)</label>
+      <label>Ad Media (image or video shown in the box)</label>
       <div class="upload-box" id="photoBox">
-        <div id="photoLabel">📷  Tap to choose a photo</div>
-        <input type="file" id="photoInput" accept="image/*">
+        <div id="photoLabel">📷  Tap to choose a photo or video</div>
+        <input type="file" id="photoInput" accept="image/*,video/mp4,video/webm,video/quicktime">
       </div>
       <img id="photoPreview" class="preview-thumb" alt="">
+      <video id="videoPreview" class="preview-thumb" controls muted></video>
 
       <label>Link Destination</label>
       <div class="upload-box" id="fileBox">
@@ -158,11 +158,10 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const BUCKET = 'agrilink-images';
 const FOLDER = 'app-ad-uploads';
 
-/* ---------- State for current modal ---------- */
-let pickedPhoto = null;     // File or null
-let pickedLinkFile = null;  // File or null
-let existingImageUrl = null; // From DB when editing
-let existingLinkUrl = null;  // From DB when editing
+let pickedPhoto = null;
+let pickedLinkFile = null;
+let existingImageUrl = null;
+let existingLinkUrl = null;
 
 async function requireLogin() {
   const { data } = await db.auth.getSession();
@@ -173,6 +172,10 @@ async function requireLogin() {
   return true;
 }
 
+function isVideoUrl(url) {
+  return /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(url || '');
+}
+
 async function loadAds() {
   const list = document.getElementById('list');
   list.innerHTML = 'Loading…';
@@ -180,7 +183,18 @@ async function loadAds() {
     .select('*').order('sort_order', { ascending: true });
   if (error) { list.innerHTML = '<p class="msg">' + error.message + '</p>'; return; }
   if (!data || !data.length) { list.innerHTML = '<p>No app ads yet.</p>'; return; }
-  list.innerHTML = data.map(ad => `
+
+  list.innerHTML = data.map(ad => {
+    let media = '';
+    if (ad.image_url) {
+      if (isVideoUrl(ad.image_url)) {
+        media = '<video src="' + esc(ad.image_url) + '" style="max-width:100%; max-height:120px; border-radius:8px; margin:6px 0;" controls muted></video>';
+      } else {
+        media = '<img src="' + esc(ad.image_url) + '" style="max-width:100%; max-height:120px; border-radius:8px; margin:6px 0;">';
+      }
+    }
+
+    return `
     <div class="card" style="${ad.is_active ? '' : 'opacity:0.6;'}">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
         <strong style="font-size:16px;">${esc(ad.title)}</strong>
@@ -189,7 +203,7 @@ async function loadAds() {
         </span>
       </div>
       <p style="margin:8px 0; color:#555;">${esc(ad.body || '')}</p>
-      ${ad.image_url ? '<img src="' + esc(ad.image_url) + '" style="max-width:100%; max-height:120px; border-radius:8px; margin:6px 0;">' : ''}
+      ${media}
       <div style="font-size:12px; color:#777; word-break:break-all;">
         ${esc(ad.position)} · sort ${ad.sort_order} · ${ad.display_seconds}s
         ${ad.link_url ? '<br>Link: ' + esc(ad.link_url) : ''}
@@ -202,7 +216,8 @@ async function loadAds() {
         <button class="btn-danger" onclick="deleteAd('${ad.id}')">Delete</button>
       </div>
     </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function esc(s) {
@@ -210,10 +225,6 @@ function esc(s) {
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;');
 }
-
-/* ============================================================
-   MODAL OPEN / CLOSE
-   ============================================================ */
 
 function openModal(ad) {
   ad = ad || {};
@@ -230,30 +241,37 @@ function openModal(ad) {
   document.getElementById('f_ends_at').value = ad.ends_at ? ad.ends_at.slice(0,16) : '';
   document.getElementById('f_is_active').checked = ad.is_active !== false;
 
-  /* Reset pickers */
   pickedPhoto = null;
   pickedLinkFile = null;
   existingImageUrl = ad.image_url || null;
   existingLinkUrl = ad.link_url || null;
 
-  /* Photo */
   const photoPreview = document.getElementById('photoPreview');
+  const videoPreview = document.getElementById('videoPreview');
   const photoLabel = document.getElementById('photoLabel');
   const photoBox = document.getElementById('photoBox');
   document.getElementById('photoInput').value = '';
+  photoPreview.classList.remove('show');
+  videoPreview.classList.remove('show');
+  videoPreview.src = '';
+  photoPreview.src = '';
+
   if (existingImageUrl) {
-    photoPreview.src = existingImageUrl;
-    photoPreview.classList.add('show');
-    photoLabel.textContent = '📷  Current photo (tap to change)';
+    if (isVideoUrl(existingImageUrl)) {
+      videoPreview.src = existingImageUrl;
+      videoPreview.classList.add('show');
+      photoLabel.textContent = '📹  Current video (tap to change)';
+    } else {
+      photoPreview.src = existingImageUrl;
+      photoPreview.classList.add('show');
+      photoLabel.textContent = '📷  Current photo (tap to change)';
+    }
     photoBox.classList.add('has-file');
   } else {
-    photoPreview.classList.remove('show');
-    photoPreview.src = '';
-    photoLabel.textContent = '📷  Tap to choose a photo';
+    photoLabel.textContent = '📷  Tap to choose a photo or video';
     photoBox.classList.remove('has-file');
   }
 
-  /* Link file + URL */
   document.getElementById('fileInput').value = '';
   const fileBox = document.getElementById('fileBox');
   const fileLabel = document.getElementById('fileLabel');
@@ -277,6 +295,9 @@ function openModal(ad) {
 
 function closeModal() {
   document.getElementById('modal').style.display = 'none';
+  const videoPreview = document.getElementById('videoPreview');
+  try { videoPreview.pause(); } catch (e) {}
+  videoPreview.src = '';
 }
 
 async function editAd(id) {
@@ -296,10 +317,6 @@ async function deleteAd(id) {
   loadAds();
 }
 
-/* ============================================================
-   FILE PICKERS
-   ============================================================ */
-
 function attachPicker(pickerId, inputId, onChange) {
   document.getElementById(pickerId).addEventListener('click', () => {
     document.getElementById(inputId).click();
@@ -312,17 +329,27 @@ function attachPicker(pickerId, inputId, onChange) {
 }
 
 function initPickers() {
-  /* Ad photo */
   attachPicker('photoBox', 'photoInput', (file) => {
     pickedPhoto = file;
-    const prev = document.getElementById('photoPreview');
-    prev.src = URL.createObjectURL(file);
-    prev.classList.add('show');
+    const photoPreview = document.getElementById('photoPreview');
+    const videoPreview = document.getElementById('videoPreview');
+    const isVid = file.type.startsWith('video/') || isVideoUrl(file.name);
+
+    if (isVid) {
+      photoPreview.classList.remove('show');
+      photoPreview.src = '';
+      videoPreview.src = URL.createObjectURL(file);
+      videoPreview.classList.add('show');
+    } else {
+      videoPreview.classList.remove('show');
+      videoPreview.src = '';
+      photoPreview.src = URL.createObjectURL(file);
+      photoPreview.classList.add('show');
+    }
     document.getElementById('photoLabel').textContent = '📷  ' + file.name;
     document.getElementById('photoBox').classList.add('has-file');
   });
 
-  /* Link file */
   attachPicker('fileBox', 'fileInput', (file) => {
     pickedLinkFile = file;
     document.getElementById('fileLabel').textContent =
@@ -330,11 +357,9 @@ function initPickers() {
     document.getElementById('fileBox').classList.add('has-file');
     document.getElementById('fileHint').textContent =
       'This file will be uploaded and become the ad link.';
-    /* Clear the text URL when a file is chosen */
     document.getElementById('f_link_url').value = '';
   });
 
-  /* If user types in URL field, clear the file */
   document.getElementById('f_link_url').addEventListener('input', (e) => {
     if (e.target.value.trim().length > 0) {
       pickedLinkFile = null;
@@ -348,10 +373,6 @@ function initPickers() {
   });
 }
 
-/* ============================================================
-   UPLOAD HELPERS
-   ============================================================ */
-
 function guessMime(name) {
   const n = (name || '').toLowerCase();
   if (n.endsWith('.pdf')) return 'application/pdf';
@@ -359,17 +380,16 @@ function guessMime(name) {
   if (n.endsWith('.png')) return 'image/png';
   if (n.endsWith('.gif')) return 'image/gif';
   if (n.endsWith('.webp')) return 'image/webp';
+  if (n.endsWith('.mp4')) return 'video/mp4';
+  if (n.endsWith('.webm')) return 'video/webm';
+  if (n.endsWith('.mov')) return 'video/quicktime';
   if (n.endsWith('.doc')) return 'application/msword';
   if (n.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   if (n.endsWith('.xls')) return 'application/vnd.ms-excel';
   if (n.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-  if (n.endsWith('.ppt')) return 'application/vnd.ms-powerpoint';
-  if (n.endsWith('.pptx')) return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
   if (n.endsWith('.txt')) return 'text/plain';
   if (n.endsWith('.csv')) return 'text/csv';
   if (n.endsWith('.zip')) return 'application/zip';
-  if (n.endsWith('.mp4')) return 'video/mp4';
-  if (n.endsWith('.mp3')) return 'audio/mpeg';
   return 'application/octet-stream';
 }
 
@@ -387,10 +407,6 @@ async function uploadFile(file, label) {
   return data.publicUrl;
 }
 
-/* ============================================================
-   SAVE
-   ============================================================ */
-
 document.getElementById('newBtn').onclick = () => openModal(null);
 document.getElementById('cancelBtn').onclick = closeModal;
 
@@ -406,14 +422,12 @@ document.getElementById('form').addEventListener('submit', async (e) => {
   const typedUrl = document.getElementById('f_link_url').value.trim();
 
   try {
-    /* 1. Upload photo if picked */
     let imageUrl = existingImageUrl;
     if (pickedPhoto) {
-      msg.textContent = 'Uploading photo…';
-      imageUrl = await uploadFile(pickedPhoto, 'photo');
+      msg.textContent = 'Uploading media…';
+      imageUrl = await uploadFile(pickedPhoto, 'media');
     }
 
-    /* 2. Upload link file if picked */
     let linkUrl = existingLinkUrl;
     if (pickedLinkFile) {
       msg.textContent = 'Uploading file…';
@@ -426,7 +440,6 @@ document.getElementById('form').addEventListener('submit', async (e) => {
       throw new Error('Please choose a file or paste a URL for the link.');
     }
 
-    /* 3. Build payload */
     const payload = {
       title: document.getElementById('f_title').value.trim(),
       body: document.getElementById('f_body').value.trim(),
@@ -441,7 +454,6 @@ document.getElementById('form').addEventListener('submit', async (e) => {
       is_active: document.getElementById('f_is_active').checked
     };
 
-    /* 4. Insert or update */
     const { error } = id
       ? await db.from('app_advertisements').update(payload).eq('id', id)
       : await db.from('app_advertisements').insert(payload);
@@ -458,10 +470,6 @@ document.getElementById('form').addEventListener('submit', async (e) => {
     btn.disabled = false;
   }
 });
-
-/* ============================================================
-   BOOT
-   ============================================================ */
 
 (async () => {
   initPickers();
