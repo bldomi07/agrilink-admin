@@ -26,71 +26,23 @@
     .chip.active { background: #1e7a3c; color: #fff; }
     .result-count { padding: 10px 4px 0; font-size: 13px; color: #666; }
 
-    /* Location filter */
     .loc-filter { margin-top: 10px; }
-    .loc-filter > summary {
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 600;
-      color: #1e7a3c;
-      padding: 10px 12px;
-      background: #f1f5f2;
-      border-radius: 10px;
-      list-style: none;
-      user-select: none;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    .loc-filter > summary { cursor: pointer; font-size: 13px; font-weight: 600; color: #1e7a3c; padding: 10px 12px; background: #f1f5f2; border-radius: 10px; list-style: none; user-select: none; display: flex; align-items: center; gap: 6px; }
     .loc-filter > summary::-webkit-details-marker { display: none; }
-    .loc-filter > summary::after {
-      content: '▾';
-      margin-left: auto;
-      transition: transform 0.2s;
-    }
+    .loc-filter > summary::after { content: '▾'; margin-left: auto; transition: transform 0.2s; }
     .loc-filter[open] > summary::after { transform: rotate(180deg); }
-    .loc-filter[open] > summary {
-      border-bottom-left-radius: 0;
-      border-bottom-right-radius: 0;
-    }
-    .cascade-box {
-      padding: 12px;
-      background: #fbfdfb;
-      border: 1px solid #e6ece8;
-      border-top: 0;
-      border-bottom-left-radius: 10px;
-      border-bottom-right-radius: 10px;
-    }
-    .cascade-box label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      color: #666;
-      margin: 8px 0 4px;
-    }
+    .loc-filter[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+    .cascade-box { padding: 12px; background: #fbfdfb; border: 1px solid #e6ece8; border-top: 0; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
+    .cascade-box label { display: block; font-size: 12px; font-weight: 600; color: #666; margin: 8px 0 4px; }
     .cascade-box label:first-child { margin-top: 0; }
-    .cascade-box select {
-      width: 100%;
-      padding: 10px 12px;
-      font-size: 14px;
-      border: 1px solid #cfd8d2;
-      border-radius: 8px;
-      background: #fff;
-      font-family: inherit;
-    }
-    .cascade-box .empty-msg {
-      font-size: 13px;
-      color: #888;
-      text-align: center;
-      padding: 10px 0;
-    }
+    .cascade-box select { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #cfd8d2; border-radius: 8px; background: #fff; font-family: inherit; }
+    .cascade-box .empty-msg { font-size: 13px; color: #888; text-align: center; padding: 10px 0; }
 
-    /* Ad banner / slideshow */
     #adSlot { padding: 12px 12px 0; }
     .ad-wrap { position: relative; width: 100%; aspect-ratio: 16/7; background: #eef3ef; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
     .ad-slide { position: absolute; inset: 0; display: none; text-decoration: none; color: inherit; }
     .ad-slide.active { display: block; }
-    .ad-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .ad-slide img, .ad-slide video { width: 100%; height: 100%; object-fit: cover; display: block; }
     .ad-overlay { position: absolute; inset: auto 0 0 0; padding: 12px 14px; background: linear-gradient(transparent, rgba(0,0,0,0.65)); color: #fff; }
     .ad-title { font-size: 15px; font-weight: 700; }
     .ad-desc { font-size: 12px; opacity: 0.9; margin-top: 2px; }
@@ -259,10 +211,6 @@
       });
     }
 
-    /* ============================================================
-       LOCATION TREE — built from whatever is in the visible data
-       ============================================================ */
-
     function locationPath(item) {
       const c  = (item.country    || '').trim();
       const co = (item.county     || '').trim();
@@ -315,7 +263,6 @@
         if (keys.length === 0) break;
 
         const currentValue = selectedPath[level] || '';
-
         levels.push({ level, keys, currentValue });
 
         if (currentValue && node[currentValue]) {
@@ -331,7 +278,6 @@
         box.appendChild(label);
 
         const sel = document.createElement('select');
-
         const ph = document.createElement('option');
         ph.value = '';
         ph.textContent = level === 0 ? '— All —' : '— Any —';
@@ -368,10 +314,6 @@
         summary.textContent = '📍 ' + selectedPath.join(' → ');
       }
     }
-
-    /* ============================================================
-       FILTERS
-       ============================================================ */
 
     function attachFilterHandlers() {
       const searchInput = document.getElementById('searchInput');
@@ -468,7 +410,7 @@
       const price = (p.currency || 'KES') + ' ' + Number(p.price || 0).toLocaleString();
       const unit = p.unit && p.unit !== 'unit' ? ' / ' + escapeHtml(p.unit) : '';
       const path = locationPath(p);
-      const place = path.slice(-3).reverse().join(', '); // town, ward, county
+      const place = path.slice(-3).reverse().join(', ');
 
       return '<a class="card" href="' + link + '">' +
           '<div class="card-img">' + img + featured + '</div>' +
@@ -486,7 +428,7 @@
     }
 
     /* ============================================================
-       ADS
+       ADS — supports image and video
        ============================================================ */
 
     async function loadAds() {
@@ -499,21 +441,34 @@
       } catch (e) { document.getElementById('adSlot').innerHTML = ''; }
     }
 
+    function isVideoUrl(url) {
+      return /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(url || '');
+    }
+
     function buildAdHtml(ads) {
       const slides = ads.map((a, i) => {
-        const inner = a.image_url
-          ? '<img src="' + escapeHtml(a.image_url) + '" alt="" onerror="this.style.display=\'none\'">'
-          : '<div class="ad-textonly"><div class="ad-title">' + escapeHtml(a.title || '') + '</div>' +
+        let inner;
+        if (!a.image_url) {
+          inner = '<div class="ad-textonly"><div class="ad-title">' + escapeHtml(a.title || '') + '</div>' +
             (a.description ? '<div class="ad-desc">' + escapeHtml(a.description) + '</div>' : '') + '</div>';
-        const overlay = a.image_url
+        } else if (isVideoUrl(a.image_url)) {
+          inner = '<video src="' + escapeHtml(a.image_url) + '" autoplay muted loop playsinline ' +
+                  'style="width:100%; height:100%; object-fit:cover; display:block;"></video>';
+        } else {
+          inner = '<img src="' + escapeHtml(a.image_url) + '" alt="" onerror="this.style.display=\'none\'">';
+        }
+
+        const overlay = a.title
           ? '<div class="ad-overlay"><div class="ad-title">' + escapeHtml(a.title || '') + '</div>' +
             (a.description ? '<div class="ad-desc">' + escapeHtml(a.description) + '</div>' : '') + '</div>'
           : '';
+
         const cls = 'ad-slide' + (i === 0 ? ' active' : '');
         const tag = a.link_url ? 'a' : 'div';
         const href = a.link_url ? ' href="' + escapeHtml(a.link_url) + '" target="_blank" rel="noopener"' : '';
         return '<' + tag + ' class="' + cls + '"' + href + '>' + inner + overlay + '</' + tag + '>';
       }).join('');
+
       const dots = ads.length > 1
         ? '<div class="ad-dots">' + ads.map((_, i) => '<button class="ad-dot' + (i === 0 ? ' active' : '') + '" data-dot="' + i + '"></button>').join('') + '</div>'
         : '';
@@ -525,12 +480,26 @@
       let idx = 0;
       const wrap = document.getElementById('adWrap');
       if (!wrap) return;
+
       const show = (n) => {
         idx = ((n % count) + count) % count;
-        wrap.querySelectorAll('.ad-slide').forEach((s, i) => s.classList.toggle('active', i === idx));
+        wrap.querySelectorAll('.ad-slide').forEach((s, i) => {
+          const active = (i === idx);
+          s.classList.toggle('active', active);
+          /* play/pause videos when switching slides */
+          const v = s.querySelector('video');
+          if (v) {
+            if (active) { try { v.currentTime = 0; v.play(); } catch (e) {} }
+            else        { try { v.pause(); } catch (e) {} }
+          }
+        });
         wrap.querySelectorAll('.ad-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
       };
+
+      show(0);
+
       adTimer = setInterval(() => show(idx + 1), 5000);
+
       wrap.querySelectorAll('.ad-dot').forEach(dot => {
         dot.addEventListener('click', (e) => {
           e.preventDefault();
@@ -539,6 +508,7 @@
           adTimer = setInterval(() => show(idx + 1), 5000);
         });
       });
+
       let touchStartX = null;
       wrap.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
       wrap.addEventListener('touchend', (e) => {
