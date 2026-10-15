@@ -184,3 +184,46 @@ async function deleteListing(id) {
   const r = await db.from('listings').delete().eq('id', id);
   if (r.error) throw r.error;
 }
+async function uploadAdAsset(file, prefix) {
+  const s = await getSession();
+  if (!s) throw new Error('You must be logged in.');
+  if (!file) throw new Error('No file selected.');
+  if (file.size > 20 * 1024 * 1024) throw new Error('File must be under 20 MB.');
+
+  const name = (file.name || 'file').toLowerCase();
+  let ext = (name.split('.').pop() || '').toLowerCase();
+  if (!ext || ext === name) ext = 'bin';
+
+  let mime = file.type || '';
+  if (!mime || mime === 'application/octet-stream') {
+    if (ext === 'pdf') mime = 'application/pdf';
+    else if (ext === 'jpg' || ext === 'jpeg') mime = 'image/jpeg';
+    else if (ext === 'png') mime = 'image/png';
+    else if (ext === 'gif') mime = 'image/gif';
+    else if (ext === 'webp') mime = 'image/webp';
+    else if (ext === 'doc') mime = 'application/msword';
+    else if (ext === 'docx') mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    else if (ext === 'xls') mime = 'application/vnd.ms-excel';
+    else if (ext === 'xlsx') mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    else if (ext === 'ppt') mime = 'application/vnd.ms-powerpoint';
+    else if (ext === 'pptx') mime = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    else if (ext === 'txt') mime = 'text/plain';
+    else if (ext === 'csv') mime = 'text/csv';
+    else if (ext === 'zip') mime = 'application/zip';
+    else if (ext === 'mp4') mime = 'video/mp4';
+    else if (ext === 'mp3') mime = 'audio/mpeg';
+    else mime = 'application/octet-stream';
+  }
+
+  const filename = (prefix || 'ad') + '-' + Date.now() + '.' + ext;
+  const path = 'app-ad-uploads/' + filename;
+
+  const r = await db.storage
+    .from('agrilink-images')
+    .upload(path, file, { cacheControl: '3600', upsert: false, contentType: mime });
+
+  if (r.error) throw r.error;
+
+  const { data } = db.storage.from('agrilink-images').getPublicUrl(path);
+  return data.publicUrl;
+}
