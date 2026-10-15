@@ -18,13 +18,15 @@
   button { cursor:pointer; border-radius:10px; padding:10px 16px;
            font-weight:600; font-size:14px; border:none; font-family:inherit; }
   .btn-primary { background:#2e7d32; color:#fff; }
+  .btn-primary:disabled { opacity:0.6; cursor:not-allowed; }
   .btn-secondary { background:#fff; color:#2e7d32; border:1.5px solid #2e7d32; }
   .btn-danger { background:#fff; color:#c62828; border:1.5px solid #c62828; }
   input, textarea, select { width:100%; padding:10px; border:1px solid #c8e6c9;
            border-radius:10px; margin:4px 0 12px; font-size:14px; font-family:inherit;
            background:#fff; color:#222; }
   label { font-size:13px; font-weight:600; color:#2e7d32; display:block; }
-  .msg { color:#c62828; font-size:13px; margin-top:8px; }
+  .msg { color:#c62828; font-size:13px; margin-top:8px; min-height:18px; }
+  .msg.ok { color:#2e7d32; }
   .badge { font-size:12px; font-weight:600; padding:3px 8px; border-radius:6px; display:inline-block; }
   .active { background:#e8f5e9; color:#2e7d32; }
   .inactive { background:#eee; color:#888; }
@@ -35,6 +37,38 @@
            padding:22px; border-radius:14px; }
   .back-link { text-decoration:none; padding:10px 16px; border-radius:10px;
                border:1.5px solid #2e7d32; color:#2e7d32; font-weight:600; font-size:14px; }
+
+  /* Upload boxes */
+  .upload-box {
+    margin: 4px 0 4px;
+    border: 2px dashed #c8e6c9;
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    background: #f8fdf9;
+    cursor: pointer;
+    font-size: 13px;
+    color: #666;
+  }
+  .upload-box:active { background: #e8f5e9; }
+  .upload-box.has-file { border-color: #2e7d32; background: #e8f5e9; color: #1b5e20; font-weight: 600; }
+  .upload-box input[type=file] { display: none; }
+  .preview-thumb {
+    margin-top: 8px; max-width: 100%; max-height: 160px;
+    border-radius: 8px; display: none;
+  }
+  .preview-thumb.show { display: block; }
+  .hint { font-size: 11px; color: #888; margin: 0 0 12px; }
+  .or-sep {
+    text-align: center; font-size: 12px; color: #aaa;
+    margin: 4px 0 8px; position: relative;
+  }
+  .or-sep::before, .or-sep::after {
+    content: ''; position: absolute; top: 50%;
+    width: 40%; height: 1px; background: #e0eee1;
+  }
+  .or-sep::before { left: 0; }
+  .or-sep::after { right: 0; }
 </style>
 </head>
 <body>
@@ -55,14 +89,34 @@
     <h2 id="modalTitle">New App Ad</h2>
     <form id="form">
       <input type="hidden" id="f_id">
+
       <label>Title</label>
       <input id="f_title" required>
+
       <label>Body</label>
       <textarea id="f_body" rows="3"></textarea>
+
       <label>Button Label</label>
       <input id="f_button_label" value="📩 Contact Admin">
-      <label>Link URL</label>
-      <input id="f_link_url" required>
+
+      <label>Ad Photo (shown in the box)</label>
+      <div class="upload-box" id="photoBox">
+        <div id="photoLabel">📷  Tap to choose a photo</div>
+        <input type="file" id="photoInput" accept="image/*">
+      </div>
+      <img id="photoPreview" class="preview-thumb" alt="">
+
+      <label>Link Destination</label>
+      <div class="upload-box" id="fileBox">
+        <div id="fileLabel">📎  Choose a file from device (PDF, image, doc…)</div>
+        <input type="file" id="fileInput">
+      </div>
+      <p class="hint" id="fileHint">Uploads to AgriLink storage and becomes the ad link.</p>
+
+      <div class="or-sep">OR paste a URL below</div>
+
+      <input id="f_link_url" placeholder="https://wa.me/254…  or  https://example.com">
+
       <label>Position</label>
       <select id="f_position">
         <option value="home_top">Home — Top</option>
@@ -70,19 +124,25 @@
         <option value="home_bottom">Home — Bottom</option>
         <option value="splash">Splash</option>
       </select>
+
       <label>Sort Order (lower = first)</label>
       <input id="f_sort_order" type="number" value="1">
+
       <label>Display Seconds (5–300)</label>
       <input id="f_display_seconds" type="number" value="30" min="5" max="300">
+
       <label>Starts At (optional)</label>
       <input id="f_starts_at" type="datetime-local">
+
       <label>Ends At (optional)</label>
       <input id="f_ends_at" type="datetime-local">
+
       <label style="display:flex; gap:8px; align-items:center; margin-top:6px;">
         <input id="f_is_active" type="checkbox" checked style="width:auto; margin:0;"> Active
       </label>
+
       <div style="display:flex; gap:10px; margin-top:18px;">
-        <button type="submit" class="btn-primary">Save</button>
+        <button type="submit" class="btn-primary" id="saveBtn">Save</button>
         <button type="button" id="cancelBtn" class="btn-secondary">Cancel</button>
       </div>
       <p class="msg" id="formMsg"></p>
@@ -94,6 +154,15 @@
 const SUPABASE_URL = 'https://uwrktkusglldbmezepya.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_ji1ivwRE1mtYGl9HcjKkXg_JdT4Msss';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const BUCKET = 'agrilink-images';
+const FOLDER = 'app-ad-uploads';
+
+/* ---------- State for current modal ---------- */
+let pickedPhoto = null;     // File or null
+let pickedLinkFile = null;  // File or null
+let existingImageUrl = null; // From DB when editing
+let existingLinkUrl = null;  // From DB when editing
 
 async function requireLogin() {
   const { data } = await db.auth.getSession();
@@ -120,8 +189,10 @@ async function loadAds() {
         </span>
       </div>
       <p style="margin:8px 0; color:#555;">${esc(ad.body || '')}</p>
-      <div style="font-size:12px; color:#777;">
+      ${ad.image_url ? '<img src="' + esc(ad.image_url) + '" style="max-width:100%; max-height:120px; border-radius:8px; margin:6px 0;">' : ''}
+      <div style="font-size:12px; color:#777; word-break:break-all;">
         ${esc(ad.position)} · sort ${ad.sort_order} · ${ad.display_seconds}s
+        ${ad.link_url ? '<br>Link: ' + esc(ad.link_url) : ''}
       </div>
       <div class="row-actions">
         <button class="btn-secondary" onclick="editAd('${ad.id}')">Edit</button>
@@ -140,21 +211,67 @@ function esc(s) {
     .replace(/"/g,'&quot;');
 }
 
+/* ============================================================
+   MODAL OPEN / CLOSE
+   ============================================================ */
+
 function openModal(ad) {
   ad = ad || {};
+
   document.getElementById('modalTitle').textContent = ad.id ? 'Edit App Ad' : 'New App Ad';
   document.getElementById('f_id').value = ad.id || '';
   document.getElementById('f_title').value = ad.title || '';
   document.getElementById('f_body').value = ad.body || '';
   document.getElementById('f_button_label').value = ad.button_label || '📩 Contact Admin';
-  document.getElementById('f_link_url').value = ad.link_url || '';
   document.getElementById('f_position').value = ad.position || 'home_middle';
   document.getElementById('f_sort_order').value = ad.sort_order || 1;
   document.getElementById('f_display_seconds').value = ad.display_seconds || 30;
   document.getElementById('f_starts_at').value = ad.starts_at ? ad.starts_at.slice(0,16) : '';
   document.getElementById('f_ends_at').value = ad.ends_at ? ad.ends_at.slice(0,16) : '';
   document.getElementById('f_is_active').checked = ad.is_active !== false;
+
+  /* Reset pickers */
+  pickedPhoto = null;
+  pickedLinkFile = null;
+  existingImageUrl = ad.image_url || null;
+  existingLinkUrl = ad.link_url || null;
+
+  /* Photo */
+  const photoPreview = document.getElementById('photoPreview');
+  const photoLabel = document.getElementById('photoLabel');
+  const photoBox = document.getElementById('photoBox');
+  document.getElementById('photoInput').value = '';
+  if (existingImageUrl) {
+    photoPreview.src = existingImageUrl;
+    photoPreview.classList.add('show');
+    photoLabel.textContent = '📷  Current photo (tap to change)';
+    photoBox.classList.add('has-file');
+  } else {
+    photoPreview.classList.remove('show');
+    photoPreview.src = '';
+    photoLabel.textContent = '📷  Tap to choose a photo';
+    photoBox.classList.remove('has-file');
+  }
+
+  /* Link file + URL */
+  document.getElementById('fileInput').value = '';
+  const fileBox = document.getElementById('fileBox');
+  const fileLabel = document.getElementById('fileLabel');
+  const fileHint = document.getElementById('fileHint');
+  if (existingLinkUrl) {
+    fileLabel.textContent = '📎  Current link is set — tap to upload a new file instead';
+    fileBox.classList.remove('has-file');
+    fileHint.textContent = 'Current link: ' + existingLinkUrl.slice(0, 60) + (existingLinkUrl.length > 60 ? '…' : '');
+    document.getElementById('f_link_url').value = existingLinkUrl;
+  } else {
+    fileLabel.textContent = '📎  Choose a file from device (PDF, image, doc…)';
+    fileBox.classList.remove('has-file');
+    fileHint.textContent = 'Uploads to AgriLink storage and becomes the ad link.';
+    document.getElementById('f_link_url').value = '';
+  }
+
   document.getElementById('formMsg').textContent = '';
+  document.getElementById('formMsg').className = 'msg';
   document.getElementById('modal').style.display = 'block';
 }
 
@@ -179,35 +296,175 @@ async function deleteAd(id) {
   loadAds();
 }
 
+/* ============================================================
+   FILE PICKERS
+   ============================================================ */
+
+function attachPicker(pickerId, inputId, onChange) {
+  document.getElementById(pickerId).addEventListener('click', () => {
+    document.getElementById(inputId).click();
+  });
+  document.getElementById(inputId).addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    onChange(f);
+  });
+}
+
+function initPickers() {
+  /* Ad photo */
+  attachPicker('photoBox', 'photoInput', (file) => {
+    pickedPhoto = file;
+    const prev = document.getElementById('photoPreview');
+    prev.src = URL.createObjectURL(file);
+    prev.classList.add('show');
+    document.getElementById('photoLabel').textContent = '📷  ' + file.name;
+    document.getElementById('photoBox').classList.add('has-file');
+  });
+
+  /* Link file */
+  attachPicker('fileBox', 'fileInput', (file) => {
+    pickedLinkFile = file;
+    document.getElementById('fileLabel').textContent =
+      '📎  ' + file.name + '  (' + (file.size/1024).toFixed(0) + ' KB)';
+    document.getElementById('fileBox').classList.add('has-file');
+    document.getElementById('fileHint').textContent =
+      'This file will be uploaded and become the ad link.';
+    /* Clear the text URL when a file is chosen */
+    document.getElementById('f_link_url').value = '';
+  });
+
+  /* If user types in URL field, clear the file */
+  document.getElementById('f_link_url').addEventListener('input', (e) => {
+    if (e.target.value.trim().length > 0) {
+      pickedLinkFile = null;
+      document.getElementById('fileInput').value = '';
+      document.getElementById('fileLabel').textContent =
+        '📎  Choose a file from device (PDF, image, doc…)';
+      document.getElementById('fileBox').classList.remove('has-file');
+      document.getElementById('fileHint').textContent =
+        'URL typed above will be used as the link.';
+    }
+  });
+}
+
+/* ============================================================
+   UPLOAD HELPERS
+   ============================================================ */
+
+function guessMime(name) {
+  const n = (name || '').toLowerCase();
+  if (n.endsWith('.pdf')) return 'application/pdf';
+  if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'image/jpeg';
+  if (n.endsWith('.png')) return 'image/png';
+  if (n.endsWith('.gif')) return 'image/gif';
+  if (n.endsWith('.webp')) return 'image/webp';
+  if (n.endsWith('.doc')) return 'application/msword';
+  if (n.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (n.endsWith('.xls')) return 'application/vnd.ms-excel';
+  if (n.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  if (n.endsWith('.ppt')) return 'application/vnd.ms-powerpoint';
+  if (n.endsWith('.pptx')) return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+  if (n.endsWith('.txt')) return 'text/plain';
+  if (n.endsWith('.csv')) return 'text/csv';
+  if (n.endsWith('.zip')) return 'application/zip';
+  if (n.endsWith('.mp4')) return 'video/mp4';
+  if (n.endsWith('.mp3')) return 'audio/mpeg';
+  return 'application/octet-stream';
+}
+
+async function uploadFile(file, label) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const safeExt = ext ? '.' + ext : '';
+  const path = FOLDER + '/' + label + '-' + Date.now() + safeExt;
+  const mime = file.type || guessMime(file.name);
+
+  const { error } = await db.storage.from(BUCKET)
+    .upload(path, file, { contentType: mime, upsert: false });
+  if (error) throw error;
+
+  const { data } = db.storage.from(BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/* ============================================================
+   SAVE
+   ============================================================ */
+
 document.getElementById('newBtn').onclick = () => openModal(null);
 document.getElementById('cancelBtn').onclick = closeModal;
 
 document.getElementById('form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const msg = document.getElementById('formMsg');
+  const btn = document.getElementById('saveBtn');
+  msg.className = 'msg';
   msg.textContent = 'Saving…';
+  btn.disabled = true;
+
   const id = document.getElementById('f_id').value;
-  const payload = {
-    title: document.getElementById('f_title').value.trim(),
-    body: document.getElementById('f_body').value.trim(),
-    button_label: document.getElementById('f_button_label').value.trim(),
-    link_url: document.getElementById('f_link_url').value.trim(),
-    position: document.getElementById('f_position').value,
-    sort_order: parseInt(document.getElementById('f_sort_order').value) || 1,
-    display_seconds: parseInt(document.getElementById('f_display_seconds').value) || 30,
-    starts_at: document.getElementById('f_starts_at').value || null,
-    ends_at: document.getElementById('f_ends_at').value || null,
-    is_active: document.getElementById('f_is_active').checked
-  };
-  const { error } = id
-    ? await db.from('app_advertisements').update(payload).eq('id', id)
-    : await db.from('app_advertisements').insert(payload);
-  if (error) { msg.textContent = error.message; return; }
-  closeModal();
-  loadAds();
+  const typedUrl = document.getElementById('f_link_url').value.trim();
+
+  try {
+    /* 1. Upload photo if picked */
+    let imageUrl = existingImageUrl;
+    if (pickedPhoto) {
+      msg.textContent = 'Uploading photo…';
+      imageUrl = await uploadFile(pickedPhoto, 'photo');
+    }
+
+    /* 2. Upload link file if picked */
+    let linkUrl = existingLinkUrl;
+    if (pickedLinkFile) {
+      msg.textContent = 'Uploading file…';
+      linkUrl = await uploadFile(pickedLinkFile, 'file');
+    } else if (typedUrl.length > 0) {
+      linkUrl = typedUrl;
+    }
+
+    if (!linkUrl) {
+      throw new Error('Please choose a file or paste a URL for the link.');
+    }
+
+    /* 3. Build payload */
+    const payload = {
+      title: document.getElementById('f_title').value.trim(),
+      body: document.getElementById('f_body').value.trim(),
+      button_label: document.getElementById('f_button_label').value.trim(),
+      link_url: linkUrl,
+      image_url: imageUrl,
+      position: document.getElementById('f_position').value,
+      sort_order: parseInt(document.getElementById('f_sort_order').value) || 1,
+      display_seconds: Math.min(300, Math.max(5, parseInt(document.getElementById('f_display_seconds').value) || 30)),
+      starts_at: document.getElementById('f_starts_at').value || null,
+      ends_at: document.getElementById('f_ends_at').value || null,
+      is_active: document.getElementById('f_is_active').checked
+    };
+
+    /* 4. Insert or update */
+    const { error } = id
+      ? await db.from('app_advertisements').update(payload).eq('id', id)
+      : await db.from('app_advertisements').insert(payload);
+
+    if (error) throw error;
+
+    msg.className = 'msg ok';
+    msg.textContent = '✅ Saved.';
+    setTimeout(() => { closeModal(); loadAds(); }, 500);
+
+  } catch (err) {
+    msg.className = 'msg';
+    msg.textContent = '❌ ' + (err.message || 'Failed');
+    btn.disabled = false;
+  }
 });
 
+/* ============================================================
+   BOOT
+   ============================================================ */
+
 (async () => {
+  initPickers();
   if (await requireLogin()) loadAds();
 })();
 </script>
