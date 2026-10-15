@@ -347,12 +347,13 @@
             <label>Description</label>
             <input id="ad_description" placeholder="Optional short line">
 
-            <label>Photo (shown in the ad)</label>
+            <label>Media (image or video shown in the ad)</label>
             <div class="photo-pick" id="adPhotoBox">
-              <div id="adPhotoLabel">📷  Tap to choose a photo</div>
-              <input type="file" id="adPhotoInput" accept="image/*">
+              <div id="adPhotoLabel">📷  Tap to choose a photo or video</div>
+              <input type="file" id="adPhotoInput" accept="image/*,video/mp4,video/webm,video/quicktime">
             </div>
             <img id="adPhotoPreview" class="ad-thumb" style="display:none;">
+            <video id="adVideoPreview" class="ad-thumb" style="display:none;" controls muted></video>
 
             <label>Link destination</label>
             <div class="file-pick" id="adFileBox">
@@ -389,6 +390,13 @@
       }
 
       ads.forEach(a => {
+        const isVideo = /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(a.image_url || '');
+        const media = a.image_url
+          ? (isVideo
+              ? '<video src="' + escapeHtml(a.image_url) + '" class="ad-thumb" controls muted></video>'
+              : '<img class="ad-thumb" src="' + escapeHtml(a.image_url) + '" alt="">')
+          : '';
+
         html += `
           <div class="profile-card">
             <div class="profile-head">
@@ -397,7 +405,7 @@
               ${a.is_active ? '<span class="badge badge-ok">active</span>' : '<span class="badge badge-warn">inactive</span>'}
             </div>
             ${a.description ? '<div class="small">' + escapeHtml(a.description) + '</div>' : ''}
-            ${a.image_url ? '<img class="ad-thumb" src="' + escapeHtml(a.image_url) + '" alt="">' : ''}
+            ${media}
             ${a.link_url ? '<div class="small" style="word-break:break-all;">Link: ' + escapeHtml(a.link_url) + '</div>' : ''}
             <div class="small">Sort: ${a.sort_order ?? 0}</div>
             <div class="profile-actions">
@@ -443,6 +451,7 @@
       const photoInput   = view.querySelector('#adPhotoInput');
       const photoLabel   = view.querySelector('#adPhotoLabel');
       const photoPreview = view.querySelector('#adPhotoPreview');
+      const videoPreview = view.querySelector('#adVideoPreview');
 
       const fileBox   = view.querySelector('#adFileBox');
       const fileInput = view.querySelector('#adFileInput');
@@ -450,19 +459,30 @@
       const fileHint  = view.querySelector('#adFileHint');
       const linkInput = view.querySelector('#ad_link_url');
 
-      /* Photo */
+      /* Photo / video picker */
       photoBox.addEventListener('click', () => photoInput.click());
       photoInput.addEventListener('change', (e) => {
         const f = e.target.files[0];
         if (!f) return;
         pickedPhoto = f;
         photoLabel.textContent = '📷  ' + f.name;
+
+        const isVid = f.type.startsWith('video/') || /\.(mp4|webm|mov|m4v|ogg)$/i.test(f.name);
+
+        if (isVid) {
+          photoPreview.style.display = 'none';
+          videoPreview.src = URL.createObjectURL(f);
+          videoPreview.style.display = 'block';
+        } else {
+          videoPreview.style.display = 'none';
+          videoPreview.src = '';
+          photoPreview.src = URL.createObjectURL(f);
+          photoPreview.style.display = 'block';
+        }
         photoBox.classList.add('has-file');
-        photoPreview.src = URL.createObjectURL(f);
-        photoPreview.style.display = 'block';
       });
 
-      /* Link file */
+      /* Link file picker */
       fileBox.addEventListener('click', () => fileInput.click());
       fileInput.addEventListener('change', (e) => {
         const f = e.target.files[0];
@@ -474,7 +494,6 @@
         linkInput.value = '';
       });
 
-      /* Typing URL clears file */
       linkInput.addEventListener('input', () => {
         if (linkInput.value.trim().length > 0) {
           pickedFile = null;
@@ -485,7 +504,6 @@
         }
       });
 
-      /* Submit */
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const msg = view.querySelector('#adCreateMsg');
@@ -495,8 +513,8 @@
         try {
           let image_url = null;
           if (pickedPhoto) {
-            btn.textContent = 'Uploading photo…';
-            image_url = await uploadAdAsset(pickedPhoto, 'webad-photo');
+            btn.textContent = 'Uploading media…';
+            image_url = await uploadAdAsset(pickedPhoto, 'webad-media');
           }
 
           let link_url = linkInput.value.trim();
