@@ -155,20 +155,21 @@
       if (s) s.classList.add('hide');
     }, 600);
 
+    /* ============================================================
+       INIT — LOGIN REQUIRED
+       ============================================================ */
+
     async function init() {
-      try {
-        const session = await getSession();
-        const authLink = document.getElementById('authLink');
-        const sellLink = document.getElementById('sellLink');
-        if (session) {
-          authLink.textContent = 'My account';
-          authLink.href = 'me.html';
-          if (sellLink) sellLink.style.display = '';
-        } else {
-          authLink.textContent = 'Log in';
-          authLink.href = 'login.html';
-        }
-      } catch (e) {}
+      const session = await getSession();
+      if (!session) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      const authLink = document.getElementById('authLink');
+      const sellLink = document.getElementById('sellLink');
+      if (authLink) { authLink.textContent = 'My account'; authLink.href = 'me.html'; }
+      if (sellLink) sellLink.style.display = '';
 
       attachTabHandlers();
       attachFilterHandlers();
@@ -486,7 +487,6 @@
         wrap.querySelectorAll('.ad-slide').forEach((s, i) => {
           const active = (i === idx);
           s.classList.toggle('active', active);
-          /* play/pause videos when switching slides */
           const v = s.querySelector('video');
           if (v) {
             if (active) { try { v.currentTime = 0; v.play(); } catch (e) {} }
