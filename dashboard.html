@@ -8,10 +8,16 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .photo-pick { margin-top: 6px; border: 2px dashed #cfd8d2; border-radius: 10px; padding: 12px; text-align: center; background: #fbfdfb; cursor: pointer; font-size: 13px; color: #555; }
+    .photo-pick.has-file { border-color: #1e7a3c; background: #e8f3ec; color: #146c34; font-weight: 600; }
     .photo-pick input[type=file] { display: none; }
+    .file-pick { margin-top: 6px; border: 2px dashed #cfd8d2; border-radius: 10px; padding: 12px; text-align: center; background: #fbfdfb; cursor: pointer; font-size: 13px; color: #555; }
+    .file-pick.has-file { border-color: #1e7a3c; background: #e8f3ec; color: #146c34; font-weight: 600; }
+    .file-pick input[type=file] { display: none; }
     .ad-thumb { width: 100%; max-height: 140px; object-fit: cover; border-radius: 10px; margin-top: 6px; }
     .location-line { font-size: 12px; color: #555; margin-top: 2px; }
     .location-line strong { color: #1c1c1c; }
+    .or-sep { text-align: center; font-size: 12px; color: #aaa; margin: 10px 0 6px; }
+    .hint { font-size: 11px; color: #888; margin: 2px 0 8px; }
   </style>
 </head>
 <body>
@@ -337,24 +343,38 @@
           <form id="adCreateForm" style="margin-top:10px;">
             <label>Title</label>
             <input id="ad_title" required placeholder="e.g. Fresh Harvest Season!">
+
             <label>Description</label>
             <input id="ad_description" placeholder="Optional short line">
-            <label>Photo</label>
+
+            <label>Photo (shown in the ad)</label>
             <div class="photo-pick" id="adPhotoBox">
-              <div id="adPhotoLabel">Tap to choose a photo</div>
+              <div id="adPhotoLabel">📷  Tap to choose a photo</div>
               <input type="file" id="adPhotoInput" accept="image/*">
             </div>
             <img id="adPhotoPreview" class="ad-thumb" style="display:none;">
-            <label>Link URL (where it opens when tapped)</label>
-            <input id="ad_link_url" type="url" placeholder="https://…">
+
+            <label>Link destination</label>
+            <div class="file-pick" id="adFileBox">
+              <div id="adFileLabel">📎  Choose a file from device (PDF, image, doc…)</div>
+              <input type="file" id="adFileInput">
+            </div>
+            <p class="hint" id="adFileHint">Uploads to AgriLink storage and becomes the ad link.</p>
+
+            <div class="or-sep">— OR paste a URL below —</div>
+
+            <input id="ad_link_url" placeholder="https://wa.me/254…  or  https://example.com">
+
             <label>Position</label>
             <select id="ad_position">
               <option value="home_top">Home — top</option>
               <option value="home_middle">Home — middle</option>
               <option value="home_bottom">Home — bottom</option>
             </select>
+
             <label>Sort order (lower = first)</label>
             <input id="ad_sort_order" type="number" value="0">
+
             <button type="submit" id="adCreateBtn">Create ad</button>
             <p id="adCreateMsg" class="small"></p>
           </form>
@@ -378,7 +398,7 @@
             </div>
             ${a.description ? '<div class="small">' + escapeHtml(a.description) + '</div>' : ''}
             ${a.image_url ? '<img class="ad-thumb" src="' + escapeHtml(a.image_url) + '" alt="">' : ''}
-            ${a.link_url ? '<div class="small">Link: ' + escapeHtml(a.link_url) + '</div>' : ''}
+            ${a.link_url ? '<div class="small" style="word-break:break-all;">Link: ' + escapeHtml(a.link_url) + '</div>' : ''}
             <div class="small">Sort: ${a.sort_order ?? 0}</div>
             <div class="profile-actions">
               <button class="btn-sm" data-ad-action="toggle" data-id="${a.id}" data-value="${!a.is_active}">
@@ -415,39 +435,86 @@
     function attachAdCreate(view) {
       const form = view.querySelector('#adCreateForm');
       if (!form) return;
-      let pickedFile = null;
-      const photoBox = view.querySelector('#adPhotoBox');
-      const photoInput = view.querySelector('#adPhotoInput');
-      const photoLabel = view.querySelector('#adPhotoLabel');
+
+      let pickedPhoto = null;
+      let pickedFile  = null;
+
+      const photoBox     = view.querySelector('#adPhotoBox');
+      const photoInput   = view.querySelector('#adPhotoInput');
+      const photoLabel   = view.querySelector('#adPhotoLabel');
       const photoPreview = view.querySelector('#adPhotoPreview');
 
+      const fileBox   = view.querySelector('#adFileBox');
+      const fileInput = view.querySelector('#adFileInput');
+      const fileLabel = view.querySelector('#adFileLabel');
+      const fileHint  = view.querySelector('#adFileHint');
+      const linkInput = view.querySelector('#ad_link_url');
+
+      /* Photo */
       photoBox.addEventListener('click', () => photoInput.click());
       photoInput.addEventListener('change', (e) => {
         const f = e.target.files[0];
         if (!f) return;
-        pickedFile = f;
-        photoLabel.textContent = f.name;
+        pickedPhoto = f;
+        photoLabel.textContent = '📷  ' + f.name;
+        photoBox.classList.add('has-file');
         photoPreview.src = URL.createObjectURL(f);
         photoPreview.style.display = 'block';
       });
 
+      /* Link file */
+      fileBox.addEventListener('click', () => fileInput.click());
+      fileInput.addEventListener('change', (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        pickedFile = f;
+        fileLabel.textContent = '📎  ' + f.name + '  (' + (f.size / 1024).toFixed(0) + ' KB)';
+        fileBox.classList.add('has-file');
+        fileHint.textContent = 'This file will be uploaded and become the ad link.';
+        linkInput.value = '';
+      });
+
+      /* Typing URL clears file */
+      linkInput.addEventListener('input', () => {
+        if (linkInput.value.trim().length > 0) {
+          pickedFile = null;
+          fileInput.value = '';
+          fileLabel.textContent = '📎  Choose a file from device (PDF, image, doc…)';
+          fileBox.classList.remove('has-file');
+          fileHint.textContent = 'URL typed above will be used as the link.';
+        }
+      });
+
+      /* Submit */
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const msg = view.querySelector('#adCreateMsg');
         const btn = view.querySelector('#adCreateBtn');
         msg.textContent = ''; btn.disabled = true;
+
         try {
           let image_url = null;
-          if (pickedFile) {
+          if (pickedPhoto) {
             btn.textContent = 'Uploading photo…';
-            image_url = await uploadImage(pickedFile, 'ad');
+            image_url = await uploadAdAsset(pickedPhoto, 'webad-photo');
           }
+
+          let link_url = linkInput.value.trim();
+          if (pickedFile) {
+            btn.textContent = 'Uploading file…';
+            link_url = await uploadAdAsset(pickedFile, 'webad-file');
+          }
+
+          if (!link_url) {
+            throw new Error('Please choose a file or paste a URL for the link.');
+          }
+
           btn.textContent = 'Creating…';
           await createAd({
             title: document.getElementById('ad_title').value.trim(),
             description: document.getElementById('ad_description').value.trim() || null,
             image_url: image_url,
-            link_url: document.getElementById('ad_link_url').value.trim() || null,
+            link_url: link_url,
             position: document.getElementById('ad_position').value,
             sort_order: Number(document.getElementById('ad_sort_order').value) || 0,
             is_active: true
