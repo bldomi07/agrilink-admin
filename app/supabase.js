@@ -56,7 +56,7 @@ async function login(email, password) {
 
 async function logout() {
   try { await db.auth.signOut(); } catch (e) {}
-  window.location.href = 'index.html';
+  window.location.href = 'login.html';
 }
 
 async function getSession() {
