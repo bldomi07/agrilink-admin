@@ -24,8 +24,68 @@
     .filters::-webkit-scrollbar { display: none; }
     .chip { flex: 0 0 auto; padding: 6px 12px; font-size: 13px; font-weight: 600; color: #555; background: #f1f5f2; border: 0; border-radius: 999px; cursor: pointer; white-space: nowrap; }
     .chip.active { background: #1e7a3c; color: #fff; }
-    .county-select { margin-top: 8px; width: 100%; padding: 10px 12px; border: 1px solid #cfd8d2; border-radius: 10px; font-size: 14px; background: #fbfdfb; }
     .result-count { padding: 10px 4px 0; font-size: 13px; color: #666; }
+
+    /* Location filter */
+    .loc-filter { margin-top: 10px; }
+    .loc-filter > summary {
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1e7a3c;
+      padding: 10px 12px;
+      background: #f1f5f2;
+      border-radius: 10px;
+      list-style: none;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .loc-filter > summary::-webkit-details-marker { display: none; }
+    .loc-filter > summary::after {
+      content: '▾';
+      margin-left: auto;
+      transition: transform 0.2s;
+    }
+    .loc-filter[open] > summary::after { transform: rotate(180deg); }
+    .loc-filter[open] > summary {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+    .cascade-box {
+      padding: 12px;
+      background: #fbfdfb;
+      border: 1px solid #e6ece8;
+      border-top: 0;
+      border-bottom-left-radius: 10px;
+      border-bottom-right-radius: 10px;
+    }
+    .cascade-box label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      margin: 8px 0 4px;
+    }
+    .cascade-box label:first-child { margin-top: 0; }
+    .cascade-box select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      border: 1px solid #cfd8d2;
+      border-radius: 8px;
+      background: #fff;
+      font-family: inherit;
+    }
+    .cascade-box .empty-msg {
+      font-size: 13px;
+      color: #888;
+      text-align: center;
+      padding: 10px 0;
+    }
+
+    /* Ad banner / slideshow */
     #adSlot { padding: 12px 12px 0; }
     .ad-wrap { position: relative; width: 100%; aspect-ratio: 16/7; background: #eef3ef; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
     .ad-slide { position: absolute; inset: 0; display: none; text-decoration: none; color: inherit; }
@@ -39,6 +99,7 @@
     .ad-dot.active { background: #fff; }
     .ad-textonly { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 16px 20px; background: linear-gradient(135deg, #1e7a3c, #2ea15a); color: #fff; }
     .ad-textonly .ad-title { font-size: 18px; }
+
     #splash { position: fixed; inset: 0; background: #1e7a3c; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; opacity: 1; transition: opacity 0.4s ease; }
     #splash.hide { opacity: 0; pointer-events: none; }
     #splash img { width: 120px; height: 120px; border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
@@ -58,8 +119,8 @@
       <span class="logo-text">AgriLink</span>
     </div>
     <div style="display:flex; gap:6px;">
-      <a href="post.html" class="login-btn" style="background:#1e7a3c; color:#fff; border-color:#1e7a3c;">+ Post</a>
-      <a href="me.html" class="login-btn">My account</a>
+      <a href="post.html" class="login-btn" id="sellLink" style="display:none; background:#1e7a3c; color:#fff; border-color:#1e7a3c;">+ Post</a>
+      <a href="login.html" class="login-btn" id="authLink">Log in</a>
     </div>
   </header>
 
@@ -75,13 +136,16 @@
 
   <div class="search-wrap">
     <div class="search-input-wrap">
-      <input id="searchInput" class="search-input" type="search" placeholder="Search…" autocomplete="off">
+      <input id="searchInput" class="search-input" type="search" placeholder="🔍 Search products, or type a place…" autocomplete="off">
       <button id="clearBtn" class="clear-btn">Clear</button>
     </div>
+
     <div class="filters" id="categoryFilters"></div>
-    <select id="countyFilter" class="county-select">
-      <option value="">All counties</option>
-    </select>
+
+    <details class="loc-filter" id="locFilterDetails">
+      <summary id="locFilterSummary">📍 Location filter</summary>
+      <div id="locationCascade" class="cascade-box"></div>
+    </details>
   </div>
 
   <main id="content">
@@ -95,8 +159,18 @@
   <script src="supabase.js"></script>
   <script>
     let ALL_ITEMS = [];
-    let state = { q: '', cat: '', county: '', type: 'product' };
+    let locationTree = {};
+    let selectedPath = [];
+    let state = { q: '', cat: '', type: 'product' };
     let adTimer = null;
+
+    const LEVEL_LABELS = [
+      'Country',
+      'Region / County',
+      'Sub-county / District',
+      'Ward',
+      'Town / Locality'
+    ];
 
     const CATS = {
       product: [
@@ -130,9 +204,19 @@
     }, 600);
 
     async function init() {
-      // LOGIN REQUIRED
-      const session = await requireLogin();
-      if (!session) return;
+      try {
+        const session = await getSession();
+        const authLink = document.getElementById('authLink');
+        const sellLink = document.getElementById('sellLink');
+        if (session) {
+          authLink.textContent = 'My account';
+          authLink.href = 'me.html';
+          if (sellLink) sellLink.style.display = '';
+        } else {
+          authLink.textContent = 'Log in';
+          authLink.href = 'login.html';
+        }
+      } catch (e) {}
 
       attachTabHandlers();
       attachFilterHandlers();
@@ -148,10 +232,11 @@
           state.type = t.dataset.type;
           state.cat = '';
           state.q = '';
-          state.county = '';
+          selectedPath = [];
           document.getElementById('searchInput').value = '';
-          document.getElementById('countyFilter').value = '';
+          document.getElementById('locFilterDetails').open = false;
           renderCategoryChips();
+          updateClearBtn();
           loadItems();
         });
       });
@@ -174,6 +259,236 @@
       });
     }
 
+    /* ============================================================
+       LOCATION TREE — built from whatever is in the visible data
+       ============================================================ */
+
+    function locationPath(item) {
+      const c  = (item.country    || '').trim();
+      const co = (item.county     || '').trim();
+      const r  = (item.region     || '').trim();
+      const sc = (item.sub_county || '').trim();
+      const w  = (item.ward       || '').trim();
+      const t  = ((item.location  || item.town || '')).trim();
+
+      const parts = [];
+      if (c)  parts.push(c);
+      if (co) parts.push(co);
+      else if (r) parts.push(r);
+      if (sc) parts.push(sc);
+      if (w)  parts.push(w);
+      if (t)  parts.push(t);
+      return parts;
+    }
+
+    function buildLocationTree(items) {
+      const tree = {};
+      items.forEach(item => {
+        const path = locationPath(item);
+        if (path.length === 0) return;
+        let node = tree;
+        for (let i = 0; i < path.length; i++) {
+          const key = path[i];
+          if (!node[key]) node[key] = {};
+          node = node[key];
+        }
+      });
+      return tree;
+    }
+
+    function renderCascade() {
+      const box = document.getElementById('locationCascade');
+      box.innerHTML = '';
+
+      const totalKeys = Object.keys(locationTree).length;
+      if (totalKeys === 0) {
+        box.innerHTML = '<div class="empty-msg">No location data yet</div>';
+        updateSummary();
+        return;
+      }
+
+      let node = locationTree;
+      const levels = [];
+
+      for (let level = 0; level < LEVEL_LABELS.length; level++) {
+        const keys = Object.keys(node).sort((a, b) => a.localeCompare(b));
+        if (keys.length === 0) break;
+
+        const currentValue = selectedPath[level] || '';
+
+        levels.push({ level, keys, currentValue });
+
+        if (currentValue && node[currentValue]) {
+          node = node[currentValue];
+        } else {
+          break;
+        }
+      }
+
+      levels.forEach(({ level, keys, currentValue }) => {
+        const label = document.createElement('label');
+        label.textContent = LEVEL_LABELS[level] || ('Level ' + (level + 1));
+        box.appendChild(label);
+
+        const sel = document.createElement('select');
+
+        const ph = document.createElement('option');
+        ph.value = '';
+        ph.textContent = level === 0 ? '— All —' : '— Any —';
+        sel.appendChild(ph);
+
+        keys.forEach(k => {
+          const opt = document.createElement('option');
+          opt.value = k;
+          opt.textContent = k;
+          if (k === currentValue) opt.selected = true;
+          sel.appendChild(opt);
+        });
+
+        sel.addEventListener('change', () => {
+          const v = sel.value;
+          selectedPath = selectedPath.slice(0, level);
+          if (v) selectedPath.push(v);
+          renderCascade();
+          updateClearBtn();
+          render();
+        });
+
+        box.appendChild(sel);
+      });
+
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const summary = document.getElementById('locFilterSummary');
+      if (selectedPath.length === 0) {
+        summary.textContent = '📍 Location filter';
+      } else {
+        summary.textContent = '📍 ' + selectedPath.join(' → ');
+      }
+    }
+
+    /* ============================================================
+       FILTERS
+       ============================================================ */
+
+    function attachFilterHandlers() {
+      const searchInput = document.getElementById('searchInput');
+      const clearBtn = document.getElementById('clearBtn');
+
+      searchInput.addEventListener('input', () => {
+        state.q = searchInput.value.trim().toLowerCase();
+        updateClearBtn();
+        render();
+      });
+
+      clearBtn.addEventListener('click', () => {
+        state.q = '';
+        state.cat = '';
+        selectedPath = [];
+        searchInput.value = '';
+        document.getElementById('locFilterDetails').open = false;
+        renderCategoryChips();
+        renderCascade();
+        updateClearBtn();
+        render();
+      });
+    }
+
+    function updateClearBtn() {
+      const active = state.q || state.cat || selectedPath.length > 0;
+      document.getElementById('clearBtn').classList.toggle('show', !!active);
+    }
+
+    async function loadItems() {
+      const content = document.getElementById('content');
+      content.innerHTML = '<p class="loading">Loading…</p>';
+      try {
+        if (state.type === 'product') {
+          ALL_ITEMS = await getPublicProducts();
+        } else {
+          ALL_ITEMS = await getPublicListings(state.type);
+        }
+        locationTree = buildLocationTree(ALL_ITEMS);
+        selectedPath = [];
+        renderCascade();
+        render();
+      } catch (err) {
+        content.innerHTML = '<div class="error">Failed to load: ' + escapeHtml(err.message) + '</div>';
+      }
+    }
+
+    function applyFilters() {
+      return ALL_ITEMS.filter(p => {
+        if (state.q) {
+          const title = (p.title || '').toLowerCase();
+          const desc = (p.description || '').toLowerCase();
+          const loc = locationPath(p).join(' ').toLowerCase();
+          if (!title.includes(state.q) && !desc.includes(state.q) && !loc.includes(state.q)) return false;
+        }
+        if (state.cat && (p.category || '') !== state.cat) return false;
+        if (selectedPath.length > 0) {
+          const path = locationPath(p);
+          for (let i = 0; i < selectedPath.length; i++) {
+            if (path[i] !== selectedPath[i]) return false;
+          }
+        }
+        return true;
+      });
+    }
+
+    function render() {
+      const content = document.getElementById('content');
+      const list = applyFilters();
+
+      if (ALL_ITEMS.length === 0) {
+        content.innerHTML = '<div class="empty">Nothing here yet.<br>Check back soon!</div>';
+        return;
+      }
+      if (list.length === 0) {
+        content.innerHTML = '<div class="empty">Nothing matches your search.<br>Try clearing the filters.</div>';
+        return;
+      }
+      content.innerHTML =
+        '<div class="result-count">' + list.length + ' result' + (list.length === 1 ? '' : 's') + '</div>' +
+        '<div class="grid" style="margin-top:8px;">' + list.map(cardHtml).join('') + '</div>';
+    }
+
+    function cardHtml(p) {
+      const isProduct = (state.type === 'product');
+      const detailPage = isProduct ? 'product.html' : 'listing.html';
+      const link = detailPage + '?id=' + encodeURIComponent(p.id) + (isProduct ? '' : '&type=' + state.type);
+
+      const img = p.image_url
+        ? '<img src="' + escapeHtml(p.image_url) + '" alt="" loading="lazy" onerror="this.parentNode.innerHTML=\'<div class=&quot;placeholder&quot;>🌾</div>\'">'
+        : '<div class="placeholder">🌾</div>';
+
+      const featured = p.is_featured ? '<span class="badge-featured">Featured</span>' : '';
+      const price = (p.currency || 'KES') + ' ' + Number(p.price || 0).toLocaleString();
+      const unit = p.unit && p.unit !== 'unit' ? ' / ' + escapeHtml(p.unit) : '';
+      const path = locationPath(p);
+      const place = path.slice(-3).reverse().join(', '); // town, ward, county
+
+      return '<a class="card" href="' + link + '">' +
+          '<div class="card-img">' + img + featured + '</div>' +
+          '<div class="card-body">' +
+            '<div class="card-title">' + escapeHtml(p.title || '(untitled)') + '</div>' +
+            '<div class="card-price">' + escapeHtml(price) + unit + '</div>' +
+            '<div class="card-place">' + escapeHtml(place) + '</div>' +
+          '</div>' +
+        '</a>';
+    }
+
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    /* ============================================================
+       ADS
+       ============================================================ */
+
     async function loadAds() {
       try {
         const ads = await getActiveAds('home_top');
@@ -187,7 +502,7 @@
     function buildAdHtml(ads) {
       const slides = ads.map((a, i) => {
         const inner = a.image_url
-          ? '<img src="' + escapeHtml(a.image_url) + '" alt="' + escapeHtml(a.title || '') + '" onerror="this.style.display=\'none\'">'
+          ? '<img src="' + escapeHtml(a.image_url) + '" alt="" onerror="this.style.display=\'none\'">'
           : '<div class="ad-textonly"><div class="ad-title">' + escapeHtml(a.title || '') + '</div>' +
             (a.description ? '<div class="ad-desc">' + escapeHtml(a.description) + '</div>' : '') + '</div>';
         const overlay = a.image_url
@@ -197,7 +512,7 @@
         const cls = 'ad-slide' + (i === 0 ? ' active' : '');
         const tag = a.link_url ? 'a' : 'div';
         const href = a.link_url ? ' href="' + escapeHtml(a.link_url) + '" target="_blank" rel="noopener"' : '';
-        return '<' + tag + ' class="' + cls + '" data-index="' + i + '"' + href + '>' + inner + overlay + '</' + tag + '>';
+        return '<' + tag + ' class="' + cls + '"' + href + '>' + inner + overlay + '</' + tag + '>';
       }).join('');
       const dots = ads.length > 1
         ? '<div class="ad-dots">' + ads.map((_, i) => '<button class="ad-dot' + (i === 0 ? ' active' : '') + '" data-dot="' + i + '"></button>').join('') + '</div>'
@@ -234,114 +549,6 @@
         show(dx < 0 ? idx + 1 : idx - 1);
         adTimer = setInterval(() => show(idx + 1), 5000);
       });
-    }
-
-    function attachFilterHandlers() {
-      const searchInput = document.getElementById('searchInput');
-      const clearBtn = document.getElementById('clearBtn');
-      const countySelect = document.getElementById('countyFilter');
-
-      searchInput.addEventListener('input', () => {
-        state.q = searchInput.value.trim().toLowerCase();
-        updateClearBtn(); render();
-      });
-      clearBtn.addEventListener('click', () => {
-        state.q = ''; state.cat = ''; state.county = '';
-        searchInput.value = ''; countySelect.value = '';
-        renderCategoryChips(); updateClearBtn(); render();
-      });
-      countySelect.addEventListener('change', () => {
-        state.county = countySelect.value;
-        updateClearBtn(); render();
-      });
-    }
-
-    function updateClearBtn() {
-      const active = state.q || state.cat || state.county;
-      document.getElementById('clearBtn').classList.toggle('show', !!active);
-    }
-
-    async function loadItems() {
-      const content = document.getElementById('content');
-      content.innerHTML = '<p class="loading">Loading…</p>';
-      try {
-        if (state.type === 'product') {
-          ALL_ITEMS = await getPublicProducts();
-        } else {
-          ALL_ITEMS = await getPublicListings(state.type);
-        }
-        populateCounties();
-        render();
-      } catch (err) {
-        content.innerHTML = '<div class="error">Failed to load: ' + escapeHtml(err.message) + '</div>';
-      }
-    }
-
-    function populateCounties() {
-      const select = document.getElementById('countyFilter');
-      const counties = Array.from(new Set(
-        ALL_ITEMS.map(p => (p.county || '').trim()).filter(Boolean)
-      )).sort();
-      select.innerHTML = '<option value="">All counties</option>' +
-        counties.map(c => '<option value="' + escapeHtml(c) + '">' + escapeHtml(c) + '</option>').join('');
-    }
-
-    function applyFilters() {
-      return ALL_ITEMS.filter(p => {
-        if (state.q) {
-          const title = (p.title || '').toLowerCase();
-          const desc = (p.description || '').toLowerCase();
-          if (!title.includes(state.q) && !desc.includes(state.q)) return false;
-        }
-        if (state.cat && (p.category || '') !== state.cat) return false;
-        if (state.county && (p.county || '') !== state.county) return false;
-        return true;
-      });
-    }
-
-    function render() {
-      const content = document.getElementById('content');
-      const list = applyFilters();
-      if (ALL_ITEMS.length === 0) {
-        content.innerHTML = '<div class="empty">Nothing here yet.<br>Check back soon!</div>';
-        return;
-      }
-      if (list.length === 0) {
-        content.innerHTML = '<div class="empty">Nothing matches your search.<br>Try clearing the filters.</div>';
-        return;
-      }
-      content.innerHTML =
-        '<div class="result-count">' + list.length + ' result' + (list.length === 1 ? '' : 's') + '</div>' +
-        '<div class="grid" style="margin-top:8px;">' + list.map(cardHtml).join('') + '</div>';
-    }
-
-    function cardHtml(p) {
-      const isProduct = (state.type === 'product');
-      const detailPage = isProduct ? 'product.html' : 'listing.html';
-      const link = detailPage + '?id=' + encodeURIComponent(p.id) + (isProduct ? '' : '&type=' + state.type);
-
-      const img = p.image_url
-        ? '<img src="' + escapeHtml(p.image_url) + '" alt="" loading="lazy" onerror="this.parentNode.innerHTML=\'<div class=&quot;placeholder&quot;>🌾</div>\'">'
-        : '<div class="placeholder">🌾</div>';
-
-      const featured = p.is_featured ? '<span class="badge-featured">Featured</span>' : '';
-      const price = (p.currency || 'KES') + ' ' + Number(p.price || 0).toLocaleString();
-      const unit = p.unit && p.unit !== 'unit' ? ' / ' + escapeHtml(p.unit) : '';
-      const place = [p.location, p.county].filter(Boolean).join(', ');
-
-      return '<a class="card" href="' + link + '">' +
-          '<div class="card-img">' + img + featured + '</div>' +
-          '<div class="card-body">' +
-            '<div class="card-title">' + escapeHtml(p.title || '(untitled)') + '</div>' +
-            '<div class="card-price">' + escapeHtml(price) + unit + '</div>' +
-            '<div class="card-place">' + escapeHtml(place) + '</div>' +
-          '</div>' +
-        '</a>';
-    }
-
-    function escapeHtml(str) {
-      return String(str == null ? '' : str)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
   </script>
 </body>
