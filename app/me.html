@@ -94,9 +94,17 @@
       { v: 'transport_provider', l: 'Transport Provider' },{ v: 'machinery_provider', l: 'Machinery Provider' }
     ];
 
+    const GEO_LEVEL_LABELS = [
+      'Region / State',
+      'County / District',
+      'Sub-county / Sub-district',
+      'Ward / Local area'
+    ];
+
     let myProfile = null, myProducts = [], myListings = [];
     let activeTab = 'products';
     let keCounties = null, afProvinces = null;
+    let editGeoPath = [];
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -120,12 +128,12 @@
       const phone = myProfile && myProfile.phone ? myProfile.phone : '';
       const roles = (myProfile && Array.isArray(myProfile.roles)) ? myProfile.roles : [];
 
-      /* Correct field for profiles is `town` */
       const locParts = [
         myProfile && myProfile.town,
         myProfile && myProfile.ward,
         myProfile && myProfile.sub_county,
         myProfile && myProfile.county,
+        myProfile && myProfile.region,
         myProfile && myProfile.country
       ].filter(Boolean);
       const locLine = locParts.length ? locParts.join(', ') : '';
@@ -318,6 +326,7 @@
 
     async function onEditCountry(isPrefill) {
       const code = document.getElementById('edit_country').value;
+      editGeoPath = [];
       if (code === 'ke') {
         showEditBox('edit_kenyaBox');
         await loadKenyaForEdit(isPrefill);
@@ -326,7 +335,7 @@
         await loadAfForEdit(isPrefill);
       } else if (code) {
         showEditBox('edit_geoBox');
-        await loadGeoForEdit(code);
+        await loadGeoForEdit(code, isPrefill);
       } else {
         showEditBox('');
       }
@@ -349,14 +358,18 @@
       if (isPrefill && myProfile && myProfile.county) {
         countySel.value = myProfile.county;
         const county = keCounties.find(c => geoName(c) === myProfile.county);
-        const subs = geoChildrenOf(county).map(s => ({ value: geoName(s), label: geoName(s) }));
-        fillSelect(subSel, subs, '', '— choose sub-county —'); subSel.disabled = false;
-        if (myProfile.sub_county) {
-          subSel.value = myProfile.sub_county;
-          const sub = geoChildrenOf(county).find(s => geoName(s) === myProfile.sub_county);
-          const wards = wardListOf(sub).map(w => ({ value: geoName(w), label: geoName(w) }));
-          fillSelect(wardSel, wards, '', '— choose ward —'); wardSel.disabled = false;
-          if (myProfile.ward) wardSel.value = myProfile.ward;
+        if (county) {
+          const subs = geoChildrenOf(county).map(s => ({ value: geoName(s), label: geoName(s) }));
+          fillSelect(subSel, subs, '', '— choose sub-county —'); subSel.disabled = false;
+          if (myProfile.sub_county) {
+            subSel.value = myProfile.sub_county;
+            const sub = geoChildrenOf(county).find(s => geoName(s) === myProfile.sub_county);
+            if (sub) {
+              const wards = wardListOf(sub).map(w => ({ value: geoName(w), label: geoName(w) }));
+              fillSelect(wardSel, wards, '', '— choose ward —'); wardSel.disabled = false;
+              if (myProfile.ward) wardSel.value = myProfile.ward;
+            }
+          }
         }
       }
 
@@ -392,9 +405,11 @@
       if (isPrefill && myProfile && myProfile.county) {
         provSel.value = myProfile.county;
         const prov = afProvinces.find(p => geoName(p) === myProfile.county);
-        const districts = (prov.district || prov.districts || []).map(d => ({ value: geoName(d), label: geoName(d) }));
-        fillSelect(distSel, districts, '', '— choose district —'); distSel.disabled = false;
-        if (myProfile.sub_county) distSel.value = myProfile.sub_county;
+        if (prov) {
+          const districts = (prov.district || prov.districts || []).map(d => ({ value: geoName(d), label: geoName(d) }));
+          fillSelect(distSel, districts, '', '— choose district —'); distSel.disabled = false;
+          if (myProfile.sub_county) distSel.value = myProfile.sub_county;
+        }
       }
 
       provSel.onchange = () => {
@@ -406,20 +421,76 @@
       };
     }
 
-    async function loadGeoForEdit(code) {
+    // ---------- Edit: worldwide cascade (max 4 levels) ----------
+    async function loadGeoForEdit(code, isPrefill) {
       const box = document.getElementById('edit_geoLevels');
       box.innerHTML = '<p class="edit-msg info">Loading regions…</p>';
       try {
         const country = await geoCountryInfo(code);
         if (!country) throw new Error('Country not found');
         box.innerHTML = '';
-        const lab = document.createElement('label'); lab.textContent = 'Region';
-        const sel = document.createElement('select'); sel.innerHTML = '<option value="">Loading…</option>';
-        box.appendChild(lab); box.appendChild(sel);
-        const kids = await geoChildren(country.geonameId);
-        fillSelect(sel, kids.map(k => ({ value: k.geonameId, label: k.name })), '', '— choose —');
+        editGeoPath = [];
+        await renderEditGeoLevel(0, country.geonameId, isPrefill);
       } catch (e) {
         box.innerHTML = '<p class="edit-msg error">' + escapeHtml(e.message) + '</p>';
+      }
+    }
+
+    async function renderEditGeoLevel(level, parentId, isPrefill) {
+      editGeoPath = editGeoPath.slice(0, level);
+
+      const box = document.getElementById('edit_geoLevels');
+      while (box.children.length > level * 2) box.removeChild(box.lastChild);
+
+      const lab = document.createElement('label');
+      lab.textContent = GEO_LEVEL_LABELS[level] || ('Level ' + (level + 1));
+
+      const sel = document.createElement('select');
+      sel.innerHTML = '<option value="">Loading…</option>';
+
+      box.appendChild(lab);
+      box.appendChild(sel);
+
+      try {
+        const kids = await geoChildren(parentId);
+        if (!kids.length) {
+          box.removeChild(lab);
+          box.removeChild(sel);
+          return;
+        }
+
+        fillSelect(sel, kids.map(k => ({ value: k.geonameId, label: k.name })), '', '— choose —');
+
+        /* Prefill from profile: level 0 -> region, 1 -> county, 2 -> sub_county, 3 -> ward */
+        const prefilledName =
+          level === 0 ? (myProfile && myProfile.region) :
+          level === 1 ? (myProfile && myProfile.county) :
+          level === 2 ? (myProfile && myProfile.sub_county) :
+          level === 3 ? (myProfile && myProfile.ward) : null;
+
+        if (isPrefill && prefilledName) {
+          const match = kids.find(k => k.name === prefilledName);
+          if (match) {
+            sel.value = match.geonameId;
+            editGeoPath[level] = { id: match.geonameId, name: match.name };
+            if (level + 1 < GEO_LEVEL_LABELS.length) {
+              await renderEditGeoLevel(level + 1, match.geonameId, true);
+            }
+          }
+        }
+
+        sel.addEventListener('change', async () => {
+          const id = sel.value;
+          if (!id) return;
+          const name = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+          editGeoPath[level] = { id: id, name: name };
+          if (level + 1 < GEO_LEVEL_LABELS.length) {
+            await renderEditGeoLevel(level + 1, id, false);
+          }
+        });
+      } catch (e) {
+        box.removeChild(lab);
+        box.removeChild(sel);
       }
     }
 
@@ -445,18 +516,16 @@
         county = document.getElementById('edit_af_province').value || null;
         sub_county = document.getElementById('edit_af_district').value || null;
       } else if (code) {
-        const sel = document.querySelector('#edit_geoLevels select');
-        if (sel && sel.value) {
-          const opt = sel.options[sel.selectedIndex];
-          region = opt ? opt.text : null;
-        }
+        if (editGeoPath[0]) region = editGeoPath[0].name;
+        if (editGeoPath[1]) county = editGeoPath[1].name;
+        if (editGeoPath[2]) sub_county = editGeoPath[2].name;
+        if (editGeoPath[3]) ward = editGeoPath[3].name;
       }
 
       btn.disabled = true; btn.textContent = 'Saving…';
       try {
         const s = await getSession();
 
-        /* ---> The profiles table has `town`, not `location`. <--- */
         const payload = {
           full_name:  document.getElementById('edit_full_name').value.trim(),
           phone:      document.getElementById('edit_phone').value.trim(),
