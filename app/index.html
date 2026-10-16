@@ -26,46 +26,14 @@
     .chip.active { background: #1e7a3c; color: #fff; }
     .result-count { padding: 10px 4px 0; font-size: 13px; color: #666; }
 
-    /* Location filter — always visible */
-    .loc-filter-box {
-      margin-top: 10px;
-      background: #fbfdfb;
-      border: 1px solid #e6ece8;
-      border-radius: 10px;
-      padding: 12px;
-    }
-    .loc-filter-title {
-      font-size: 13px;
-      font-weight: 700;
-      color: #1e7a3c;
-      margin-bottom: 8px;
-    }
+    .loc-filter-box { margin-top: 10px; background: #fbfdfb; border: 1px solid #e6ece8; border-radius: 10px; padding: 12px; }
+    .loc-filter-title { font-size: 13px; font-weight: 700; color: #1e7a3c; margin-bottom: 8px; }
     .cascade-box { padding: 0; }
-    .cascade-box label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      color: #666;
-      margin: 10px 0 4px;
-    }
+    .cascade-box label { display: block; font-size: 12px; font-weight: 600; color: #666; margin: 10px 0 4px; }
     .cascade-box label:first-child { margin-top: 0; }
-    .cascade-box select {
-      width: 100%;
-      padding: 10px 12px;
-      font-size: 14px;
-      border: 1px solid #cfd8d2;
-      border-radius: 8px;
-      background: #fff;
-      font-family: inherit;
-    }
-    .cascade-box .empty-msg {
-      font-size: 13px;
-      color: #888;
-      text-align: center;
-      padding: 6px 0;
-    }
+    .cascade-box select { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #cfd8d2; border-radius: 8px; background: #fff; font-family: inherit; }
+    .cascade-box .empty-msg { font-size: 13px; color: #888; text-align: center; padding: 6px 0; }
 
-    /* Ad banner / slideshow */
     #adSlot { padding: 12px 12px 0; }
     .ad-wrap { position: relative; width: 100%; aspect-ratio: 16/7; background: #eef3ef; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
     .ad-slide { position: absolute; inset: 0; display: none; text-decoration: none; color: inherit; }
@@ -144,10 +112,12 @@
     let state = { q: '', cat: '', type: 'product' };
     let adTimer = null;
 
+    /* 6 levels — covers Kenya (5, no region) and other countries (up to 6) */
     const LEVEL_LABELS = [
       'Country',
-      'Region / County',
-      'Sub-county / District',
+      'Region / State',
+      'County / District',
+      'Sub-county / Sub-district',
       'Ward',
       'Town / Locality'
     ];
@@ -235,23 +205,29 @@
       });
     }
 
-    /* Build a location path from a listing's fields.
-       products & listings use `location` for town. */
-    function locationPath(item) {
-      const c  = (item.country    || '').trim();
-      const r  = (item.region     || '').trim();
-      const co = (item.county     || '').trim();
-      const sc = (item.sub_county || '').trim();
-      const w  = (item.ward       || '').trim();
-      const t  = ((item.location  || item.town || '')).trim();
+    /* ============================================================
+       LOCATION PATH
+       Always include every filled field, in hierarchy order:
+       Country → Region → County → Sub-county → Ward → Town
 
+       Kenya listings have no `region` (skipped).
+       Other countries have region + county (both included).
+       ============================================================ */
+
+    function locationPath(item) {
       const parts = [];
-      if (c)  parts.push(c);
-      if (co) parts.push(co);
-      else if (r) parts.push(r);
-      if (sc) parts.push(sc);
-      if (w)  parts.push(w);
-      if (t)  parts.push(t);
+      const push = (v) => {
+        const s = (v == null ? '' : String(v)).trim();
+        if (s && parts[parts.length - 1] !== s) parts.push(s);
+      };
+
+      push(item.country);
+      push(item.region);
+      push(item.county);
+      push(item.sub_county);
+      push(item.ward);
+      push(item.location || item.town);
+
       return parts;
     }
 
@@ -280,7 +256,7 @@
         return;
       }
 
-      /* Walk the tree following whatever the user has already selected */
+      /* Walk the tree following what the user has already selected */
       let node = locationTree;
       const levels = [];
 
@@ -442,7 +418,7 @@
     }
 
     /* ============================================================
-       ADS — supports image and video
+       ADS
        ============================================================ */
 
     async function loadAds() {
