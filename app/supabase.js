@@ -27,17 +27,25 @@ async function signUp({ email, password, full_name, phone, country, county, sub_
     const uid = r.data.user.id;
     const { data: existing } = await db.from('profiles').select('id').eq('id', uid).maybeSingle();
     const rolesArray = Array.isArray(roles) && roles.length ? roles : ['farmer'];
+
+    /* profiles table uses `town` (not `location`) */
     const profileData = {
-      id: uid, full_name, phone, email,
+      id: uid,
+      full_name,
+      phone,
+      email,
       country: country || 'Kenya',
       county: county || null,
       sub_county: sub_county || null,
       ward: ward || null,
       region: region || null,
-      location: town || null,
+      town: town || null,
       roles: rolesArray,
-      is_active: true, is_blocked: false, is_verified: false
+      is_active: true,
+      is_blocked: false,
+      is_verified: false
     };
+
     if (existing) {
       await db.from('profiles').update(profileData).eq('id', uid);
     } else {
@@ -84,6 +92,8 @@ async function getMyProfile() {
   return r.data;
 }
 
+/* ---------- Products (uses `location`) ---------- */
+
 async function getPublicProducts() {
   const r = await db.from('products')
     .select('id, title, description, category, price, currency, quantity, unit, country, county, sub_county, ward, region, location, status, is_featured, created_at, seller_id, seller_name, seller_phone, image_url')
@@ -99,6 +109,8 @@ async function getPublicProduct(id) {
   if (r.error) throw r.error;
   return r.data;
 }
+
+/* ---------- Listings (uses `location`) ---------- */
 
 async function getPublicListings(type) {
   let q = db.from('listings')
@@ -133,8 +145,11 @@ async function createProduct(data) {
     seller_id: s.user.id,
     seller_name: profile.full_name || '',
     seller_phone: profile.phone || '',
-    country: 'Kenya', currency: 'KES', status: 'active',
-    is_featured: false, view_count: 0
+    country: 'Kenya',
+    currency: 'KES',
+    status: 'active',
+    is_featured: false,
+    view_count: 0
   });
   const r = await db.from('products').insert(row).select().single();
   if (r.error) throw r.error;
@@ -150,8 +165,11 @@ async function createListing(data) {
     seller_id: s.user.id,
     seller_name: profile.full_name || '',
     seller_phone: profile.phone || '',
-    country: 'Kenya', currency: 'KES', status: 'active',
-    is_featured: false, view_count: 0
+    country: 'Kenya',
+    currency: 'KES',
+    status: 'active',
+    is_featured: false,
+    view_count: 0
   });
   const r = await db.from('listings').insert(row).select().single();
   if (r.error) throw r.error;
@@ -224,7 +242,8 @@ async function createReport({ target_type, target_id, reason, details }) {
   const row = {
     reporter_id: s.user.id,
     target_type, target_id, reason,
-    details: details || null, status: 'open'
+    details: details || null,
+    status: 'open'
   };
   const r = await db.from('reports').insert(row).select().single();
   if (r.error) throw r.error;
