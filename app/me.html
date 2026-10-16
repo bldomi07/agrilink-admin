@@ -120,9 +120,9 @@
       const phone = myProfile && myProfile.phone ? myProfile.phone : '';
       const roles = (myProfile && Array.isArray(myProfile.roles)) ? myProfile.roles : [];
 
-      // Build full location string
+      /* Correct field for profiles is `town` */
       const locParts = [
-        myProfile && myProfile.location,
+        myProfile && myProfile.town,
         myProfile && myProfile.ward,
         myProfile && myProfile.sub_county,
         myProfile && myProfile.county,
@@ -183,7 +183,7 @@
               </div>
 
               <label>Town / City / Locality</label>
-              <input id="edit_town" type="text" value="${escapeAttr(myProfile && myProfile.location || '')}">
+              <input id="edit_town" type="text" value="${escapeAttr(myProfile && myProfile.town || '')}">
 
               <label>Roles</label>
               <div class="role-box">
@@ -455,7 +455,9 @@
       btn.disabled = true; btn.textContent = 'Saving…';
       try {
         const s = await getSession();
-        const r = await db.from('profiles').update({
+
+        /* ---> The profiles table has `town`, not `location`. <--- */
+        const payload = {
           full_name:  document.getElementById('edit_full_name').value.trim(),
           phone:      document.getElementById('edit_phone').value.trim(),
           country:    countryName,
@@ -463,10 +465,13 @@
           sub_county: sub_county,
           ward:       ward,
           region:     region,
-          location:   document.getElementById('edit_town').value.trim() || null,
+          town:       document.getElementById('edit_town').value.trim() || null,
           roles:      roles
-        }).eq('id', s.user.id).select();
+        };
+
+        const r = await db.from('profiles').update(payload).eq('id', s.user.id).select();
         if (r.error) throw r.error;
+
         msg.className = 'edit-msg ok';
         msg.textContent = '✅ Saved.';
         setTimeout(init, 600);
@@ -482,6 +487,5 @@
     function escapeHtml(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     function escapeAttr(s) { return escapeHtml(s); }
   </script>
-  <script src="tour.js"></script>
 </body>
 </html>
