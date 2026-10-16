@@ -28,11 +28,10 @@
 
     .loc-filter-box { margin-top: 10px; background: #fbfdfb; border: 1px solid #e6ece8; border-radius: 10px; padding: 12px; }
     .loc-filter-title { font-size: 13px; font-weight: 700; color: #1e7a3c; margin-bottom: 8px; }
-    .cascade-box { padding: 0; }
-    .cascade-box label { display: block; font-size: 12px; font-weight: 600; color: #666; margin: 10px 0 4px; }
-    .cascade-box label:first-child { margin-top: 0; }
-    .cascade-box select { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #cfd8d2; border-radius: 8px; background: #fff; font-family: inherit; }
-    .cascade-box .empty-msg { font-size: 13px; color: #888; text-align: center; padding: 6px 0; }
+    .loc-filter-box label { display: block; font-size: 12px; font-weight: 600; color: #666; margin: 10px 0 4px; }
+    .loc-filter-box label:first-child { margin-top: 0; }
+    .loc-filter-box select { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #cfd8d2; border-radius: 8px; background: #fff; font-family: inherit; }
+    .loc-filter-box .info { font-size: 12px; color: #888; text-align: center; padding: 4px 0; }
 
     #adSlot { padding: 12px 12px 0; }
     .ad-wrap { position: relative; width: 100%; aspect-ratio: 16/7; background: #eef3ef; border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
@@ -92,7 +91,31 @@
 
     <div class="loc-filter-box">
       <div class="loc-filter-title">📍 Location</div>
-      <div id="locationCascade" class="cascade-box"></div>
+
+      <label>Country</label>
+      <select id="flt_country">
+        <option value="">— All countries —</option>
+      </select>
+
+      <div id="flt_kenyaBox" class="hidden">
+        <label id="flt_ke_county_label">County</label>
+        <select id="flt_ke_county"><option value="">— choose county —</option></select>
+        <label id="flt_ke_sub_label">Sub-county</label>
+        <select id="flt_ke_sub" disabled><option value="">— choose county first —</option></select>
+        <label id="flt_ke_ward_label">Ward</label>
+        <select id="flt_ke_ward" disabled><option value="">— choose sub-county first —</option></select>
+      </div>
+
+      <div id="flt_afBox" class="hidden">
+        <label id="flt_af_prov_label">Province</label>
+        <select id="flt_af_province"><option value="">— choose province —</option></select>
+        <label id="flt_af_dist_label">District</label>
+        <select id="flt_af_district" disabled><option value="">— choose province first —</option></select>
+      </div>
+
+      <div id="flt_geoBox" class="hidden">
+        <div id="flt_geoLevels"></div>
+      </div>
     </div>
   </div>
 
@@ -104,23 +127,26 @@
     <p>© AgriLink — Kenya</p>
   </footer>
 
+  <script src="locations.js"></script>
   <script src="supabase.js"></script>
   <script>
     let ALL_ITEMS = [];
-    let locationTree = {};
-    let selectedPath = [];
     let state = { q: '', cat: '', type: 'product' };
     let adTimer = null;
 
-    /* 6 levels — covers Kenya (5, no region) and other countries (up to 6) */
-    const LEVEL_LABELS = [
-      'Country',
-      'Region / State',
-      'County / District',
-      'Sub-county / Sub-district',
-      'Ward',
-      'Town / Locality'
-    ];
+    /* Filter state — mirrors registration cascade */
+    let flt = {
+      countryCode: '',
+      countryName: '',
+      region: '',
+      county: '',
+      sub_county: '',
+      ward: ''
+    };
+
+    let keCounties = null;
+    let afProvinces = null;
+    let fltGeoPath = [];
 
     const CATS = {
       product: [
@@ -155,10 +181,7 @@
 
     async function init() {
       const session = await getSession();
-      if (!session) {
-        window.location.href = 'login.html';
-        return;
-      }
+      if (!session) { window.location.href = 'login.html'; return; }
 
       const authLink = document.getElementById('authLink');
       const sellLink = document.getElementById('sellLink');
@@ -167,10 +190,14 @@
 
       attachTabHandlers();
       attachFilterHandlers();
+      attachLocationFilterHandlers();
       renderCategoryChips();
       await Promise.all([ loadAds(), loadItems() ]);
     }
 
+    /* ============================================================
+       TABS
+       ============================================================ */
     function attachTabHandlers() {
       document.querySelectorAll('.tab').forEach(t => {
         t.addEventListener('click', () => {
@@ -179,8 +206,8 @@
           state.type = t.dataset.type;
           state.cat = '';
           state.q = '';
-          selectedPath = [];
           document.getElementById('searchInput').value = '';
+          resetLocationFilter();
           renderCategoryChips();
           updateClearBtn();
           loadItems();
@@ -206,106 +233,235 @@
     }
 
     /* ============================================================
-       LOCATION PATH
-       Always include every filled field, in hierarchy order:
-       Country → Region → County → Sub-county → Ward → Town
-
-       Kenya listings have no `region` (skipped).
-       Other countries have region + county (both included).
+       LOCATION FILTER (matches registration flow)
        ============================================================ */
 
-    function locationPath(item) {
-      const parts = [];
-      const push = (v) => {
-        const s = (v == null ? '' : String(v)).trim();
-        if (s && parts[parts.length - 1] !== s) parts.push(s);
-      };
-
-      push(item.country);
-      push(item.region);
-      push(item.county);
-      push(item.sub_county);
-      push(item.ward);
-      push(item.location || item.town);
-
-      return parts;
-    }
-
-    function buildLocationTree(items) {
-      const tree = {};
-      items.forEach(item => {
-        const path = locationPath(item);
-        if (path.length === 0) return;
-        let node = tree;
-        for (let i = 0; i < path.length; i++) {
-          const key = path[i];
-          if (!node[key]) node[key] = {};
-          node = node[key];
-        }
+    function attachLocationFilterHandlers() {
+      /* Populate country dropdown from the shared COUNTRIES list */
+      const countrySel = document.getElementById('flt_country');
+      let html = '<option value="">— All countries —</option>';
+      COUNTRIES.forEach(c => {
+        html += '<option value="' + c.c + '">' + escHtml(c.n) + '</option>';
       });
-      return tree;
+      countrySel.innerHTML = html;
+
+      countrySel.addEventListener('change', onFilterCountry);
+      document.getElementById('flt_ke_county').addEventListener('change', onFilterKeCounty);
+      document.getElementById('flt_ke_sub').addEventListener('change', onFilterKeSub);
+      document.getElementById('flt_af_province').addEventListener('change', onFilterAfProvince);
     }
 
-    function renderCascade() {
-      const box = document.getElementById('locationCascade');
-      box.innerHTML = '';
+    function resetLocationFilter() {
+      flt = { countryCode: '', countryName: '', region: '', county: '', sub_county: '', ward: '' };
+      fltGeoPath = [];
+      document.getElementById('flt_country').value = '';
+      document.getElementById('flt_ke_county').innerHTML = '<option value="">— choose county —</option>';
+      document.getElementById('flt_ke_sub').innerHTML = '<option value="">— choose county first —</option>';
+      document.getElementById('flt_ke_sub').disabled = true;
+      document.getElementById('flt_ke_ward').innerHTML = '<option value="">— choose sub-county first —</option>';
+      document.getElementById('flt_ke_ward').disabled = true;
+      document.getElementById('flt_af_province').innerHTML = '<option value="">— choose province —</option>';
+      document.getElementById('flt_af_district').innerHTML = '<option value="">— choose province first —</option>';
+      document.getElementById('flt_af_district').disabled = true;
+      document.getElementById('flt_geoLevels').innerHTML = '';
+      showFilterBox('');
+    }
 
-      const totalKeys = Object.keys(locationTree).length;
-      if (totalKeys === 0) {
-        box.innerHTML = '<div class="empty-msg">No location data in these listings yet</div>';
+    function showFilterBox(id) {
+      ['flt_kenyaBox','flt_afBox','flt_geoBox'].forEach(x => {
+        document.getElementById(x).classList.toggle('hidden', x !== id);
+      });
+    }
+
+    async function onFilterCountry() {
+      const code = document.getElementById('flt_country').value;
+      flt = { countryCode: '', countryName: '', region: '', county: '', sub_county: '', ward: '' };
+      fltGeoPath = [];
+      document.getElementById('flt_geoLevels').innerHTML = '';
+
+      if (!code) { showFilterBox(''); updateClearBtn(); render(); return; }
+
+      const c = COUNTRIES.find(x => x.c === code);
+      flt.countryCode = code;
+      flt.countryName = c ? c.n : '';
+
+      if (code === 'ke') {
+        showFilterBox('flt_kenyaBox');
+        await loadKenyaFilter();
+      } else if (code === 'af') {
+        showFilterBox('flt_afBox');
+        await loadAfFilter();
+      } else {
+        showFilterBox('flt_geoBox');
+        await loadGeoFilter(code);
+      }
+      updateClearBtn();
+      render();
+    }
+
+    /* ---------------- Kenya ---------------- */
+    async function loadKenyaFilter() {
+      const sel = document.getElementById('flt_ke_county');
+      if (keCounties) {
+        fillSelect(sel, keCounties.map(c => ({ value: geoName(c), label: geoName(c) })), '', '— choose county —');
         return;
       }
-
-      /* Walk the tree following what the user has already selected */
-      let node = locationTree;
-      const levels = [];
-
-      for (let level = 0; level < LEVEL_LABELS.length; level++) {
-        const keys = Object.keys(node).sort((a, b) => a.localeCompare(b));
-        if (keys.length === 0) break;
-
-        const currentValue = selectedPath[level] || '';
-        levels.push({ level, keys, currentValue });
-
-        if (currentValue && node[currentValue]) {
-          node = node[currentValue];
-        } else {
-          break;
-        }
+      sel.innerHTML = '<option value="">Loading counties…</option>';
+      try {
+        keCounties = await loadKenyaHierarchy();
+        fillSelect(sel, keCounties.map(c => ({ value: geoName(c), label: geoName(c) })), '', '— choose county —');
+      } catch (e) {
+        sel.innerHTML = '<option value="">Failed to load</option>';
       }
-
-      levels.forEach(({ level, keys, currentValue }) => {
-        const label = document.createElement('label');
-        label.textContent = LEVEL_LABELS[level] || ('Level ' + (level + 1));
-        box.appendChild(label);
-
-        const sel = document.createElement('select');
-        const ph = document.createElement('option');
-        ph.value = '';
-        ph.textContent = level === 0 ? '— All countries —' : '— Any —';
-        sel.appendChild(ph);
-
-        keys.forEach(k => {
-          const opt = document.createElement('option');
-          opt.value = k;
-          opt.textContent = k;
-          if (k === currentValue) opt.selected = true;
-          sel.appendChild(opt);
-        });
-
-        sel.addEventListener('change', () => {
-          const v = sel.value;
-          selectedPath = selectedPath.slice(0, level);
-          if (v) selectedPath.push(v);
-          renderCascade();
-          updateClearBtn();
-          render();
-        });
-
-        box.appendChild(sel);
-      });
     }
 
+    function onFilterKeCounty() {
+      const name = document.getElementById('flt_ke_county').value;
+      const subSel = document.getElementById('flt_ke_sub');
+      const wardSel = document.getElementById('flt_ke_ward');
+      flt.county = name || '';
+      flt.sub_county = '';
+      flt.ward = '';
+      if (!name) {
+        subSel.innerHTML = '<option value="">— choose county first —</option>';
+        subSel.disabled = true;
+        wardSel.innerHTML = '<option value="">— choose sub-county first —</option>';
+        wardSel.disabled = true;
+        updateClearBtn(); render(); return;
+      }
+      const county = keCounties.find(c => geoName(c) === name);
+      const subs = geoChildrenOf(county).map(s => ({ value: geoName(s), label: geoName(s) }));
+      fillSelect(subSel, subs, '', '— choose sub-county —');
+      subSel.disabled = false;
+      wardSel.innerHTML = '<option value="">— choose sub-county first —</option>';
+      wardSel.disabled = true;
+      updateClearBtn(); render();
+    }
+
+    function onFilterKeSub() {
+      const cname = document.getElementById('flt_ke_county').value;
+      const sname = document.getElementById('flt_ke_sub').value;
+      const wardSel = document.getElementById('flt_ke_ward');
+      flt.sub_county = sname || '';
+      flt.ward = '';
+      if (!cname || !sname) {
+        wardSel.innerHTML = '<option value="">— choose sub-county first —</option>';
+        wardSel.disabled = true;
+        updateClearBtn(); render(); return;
+      }
+      const county = keCounties.find(c => geoName(c) === cname);
+      const sub = geoChildrenOf(county).find(s => geoName(s) === sname);
+      const wards = wardListOf(sub).map(w => ({ value: geoName(w), label: geoName(w) }));
+      fillSelect(wardSel, wards, '', '— choose ward —');
+      wardSel.disabled = false;
+      updateClearBtn(); render();
+    }
+
+    /* ---------------- Afghanistan ---------------- */
+    async function loadAfFilter() {
+      const sel = document.getElementById('flt_af_province');
+      if (afProvinces) {
+        fillSelect(sel, afProvinces.map(p => ({ value: geoName(p), label: geoName(p) })), '', '— choose province —');
+        return;
+      }
+      sel.innerHTML = '<option value="">Loading provinces…</option>';
+      try {
+        afProvinces = await loadAfghanistanHierarchy();
+        fillSelect(sel, afProvinces.map(p => ({ value: geoName(p), label: geoName(p) })), '', '— choose province —');
+      } catch (e) {
+        sel.innerHTML = '<option value="">Failed to load</option>';
+      }
+    }
+
+    function onFilterAfProvince() {
+      const name = document.getElementById('flt_af_province').value;
+      const distSel = document.getElementById('flt_af_district');
+      flt.region = name || '';
+      flt.county = '';
+      if (!name) {
+        distSel.innerHTML = '<option value="">— choose province first —</option>';
+        distSel.disabled = true;
+        updateClearBtn(); render(); return;
+      }
+      const prov = afProvinces.find(p => geoName(p) === name);
+      const districts = (prov.district || prov.districts || []).map(d => ({ value: geoName(d), label: geoName(d) }));
+      fillSelect(distSel, districts, '', '— choose district —');
+      distSel.disabled = false;
+      updateClearBtn(); render();
+    }
+
+    /* ---------------- Worldwide cascade — matches registration ---------------- */
+    async function loadGeoFilter(code) {
+      const box = document.getElementById('flt_geoLevels');
+      box.innerHTML = '<p class="info">Loading…</p>';
+      try {
+        const country = await geoCountryInfo(code);
+        if (!country) throw new Error('Country not found');
+        box.innerHTML = '';
+        fltGeoPath = [];
+        await renderFilterGeoLevel(0, country.geonameId);
+      } catch (e) {
+        box.innerHTML = '<p class="info">' + escHtml(e.message) + '</p>';
+      }
+    }
+
+    async function renderFilterGeoLevel(level, parentId) {
+      fltGeoPath = fltGeoPath.slice(0, level);
+
+      const box = document.getElementById('flt_geoLevels');
+      while (box.children.length > level * 2) box.removeChild(box.lastChild);
+
+      const lab = document.createElement('label');
+      const fieldName = ['region','county','sub_county','ward'][level] || 'region';
+      lab.textContent = labelFor(flt.countryName, fieldName);
+
+      const sel = document.createElement('select');
+      sel.innerHTML = '<option value="">Loading…</option>';
+
+      box.appendChild(lab);
+      box.appendChild(sel);
+
+      try {
+        const kids = await geoChildren(parentId);
+        if (!kids.length) {
+          box.removeChild(lab);
+          box.removeChild(sel);
+          updateClearBtn(); render(); return;
+        }
+        fillSelect(sel, kids.map(k => ({ value: k.geonameId, label: k.name })), '', '— choose —');
+
+        sel.addEventListener('change', async () => {
+          const id = sel.value;
+          if (!id) {
+            fltGeoPath = fltGeoPath.slice(0, level);
+            syncFltFromGeoPath();
+            updateClearBtn(); render();
+            return;
+          }
+          const name = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+          fltGeoPath[level] = { id: id, name: name };
+          syncFltFromGeoPath();
+          if (level + 1 < 4) {
+            await renderFilterGeoLevel(level + 1, id);
+          }
+          updateClearBtn(); render();
+        });
+
+        syncFltFromGeoPath();
+      } catch (e) {
+        box.removeChild(lab);
+        box.removeChild(sel);
+      }
+    }
+
+    function syncFltFromGeoPath() {
+      flt.region     = fltGeoPath[0] ? fltGeoPath[0].name : '';
+      flt.county     = fltGeoPath[1] ? fltGeoPath[1].name : '';
+      flt.sub_county = fltGeoPath[2] ? fltGeoPath[2].name : '';
+      flt.ward       = fltGeoPath[3] ? fltGeoPath[3].name : '';
+    }
+
+    /* ---------------- Other filters ---------------- */
     function attachFilterHandlers() {
       const searchInput = document.getElementById('searchInput');
       const clearBtn = document.getElementById('clearBtn');
@@ -319,20 +475,24 @@
       clearBtn.addEventListener('click', () => {
         state.q = '';
         state.cat = '';
-        selectedPath = [];
         searchInput.value = '';
+        resetLocationFilter();
         renderCategoryChips();
-        renderCascade();
         updateClearBtn();
         render();
       });
     }
 
     function updateClearBtn() {
-      const active = state.q || state.cat || selectedPath.length > 0;
+      const active =
+        state.q || state.cat ||
+        flt.countryCode || flt.region || flt.county || flt.sub_county || flt.ward;
       document.getElementById('clearBtn').classList.toggle('show', !!active);
     }
 
+    /* ============================================================
+       DATA LOAD
+       ============================================================ */
     async function loadItems() {
       const content = document.getElementById('content');
       content.innerHTML = '<p class="loading">Loading…</p>';
@@ -342,30 +502,36 @@
         } else {
           ALL_ITEMS = await getPublicListings(state.type);
         }
-        locationTree = buildLocationTree(ALL_ITEMS);
-        selectedPath = [];
-        renderCascade();
         render();
       } catch (err) {
         content.innerHTML = '<div class="error">Failed to load: ' + escapeHtml(err.message) + '</div>';
       }
     }
 
+    /* ============================================================
+       APPLY FILTERS
+       Location filter is a cascade (country + region + county + sub + ward).
+       A listing matches when each selected level equals the listing's value.
+       ============================================================ */
     function applyFilters() {
       return ALL_ITEMS.filter(p => {
         if (state.q) {
           const title = (p.title || '').toLowerCase();
           const desc = (p.description || '').toLowerCase();
-          const loc = locationPath(p).join(' ').toLowerCase();
-          if (!title.includes(state.q) && !desc.includes(state.q) && !loc.includes(state.q)) return false;
+          const place = [
+            p.country, p.region, p.county, p.sub_county, p.ward,
+            p.location, p.town
+          ].filter(Boolean).join(' ').toLowerCase();
+          if (!title.includes(state.q) && !desc.includes(state.q) && !place.includes(state.q)) return false;
         }
         if (state.cat && (p.category || '') !== state.cat) return false;
-        if (selectedPath.length > 0) {
-          const path = locationPath(p);
-          for (let i = 0; i < selectedPath.length; i++) {
-            if (path[i] !== selectedPath[i]) return false;
-          }
-        }
+
+        if (flt.countryName && (p.country || '') !== flt.countryName) return false;
+        if (flt.region     && (p.region     || '') !== flt.region)     return false;
+        if (flt.county     && (p.county     || '') !== flt.county)     return false;
+        if (flt.sub_county && (p.sub_county || '') !== flt.sub_county) return false;
+        if (flt.ward       && (p.ward       || '') !== flt.ward)       return false;
+
         return true;
       });
     }
@@ -379,7 +545,7 @@
         return;
       }
       if (list.length === 0) {
-        content.innerHTML = '<div class="empty">Nothing matches your search.<br>Try clearing the filters.</div>';
+        content.innerHTML = '<div class="empty">Nothing matches your filters.<br>Try clearing them.</div>';
         return;
       }
       content.innerHTML =
@@ -399,8 +565,10 @@
       const featured = p.is_featured ? '<span class="badge-featured">Featured</span>' : '';
       const price = (p.currency || 'KES') + ' ' + Number(p.price || 0).toLocaleString();
       const unit = p.unit && p.unit !== 'unit' ? ' / ' + escapeHtml(p.unit) : '';
-      const path = locationPath(p);
-      const place = path.slice(-3).reverse().join(', ');
+      const place = [
+        (p.location || p.town),
+        p.ward, p.sub_county, p.county, p.region, p.country
+      ].filter(Boolean).slice(0, 3).join(', ');
 
       return '<a class="card" href="' + link + '">' +
           '<div class="card-img">' + img + featured + '</div>' +
@@ -420,7 +588,6 @@
     /* ============================================================
        ADS
        ============================================================ */
-
     async function loadAds() {
       try {
         const ads = await getActiveAds('home_top');
@@ -486,7 +653,6 @@
       };
 
       show(0);
-
       adTimer = setInterval(() => show(idx + 1), 5000);
 
       wrap.querySelectorAll('.ad-dot').forEach(dot => {
