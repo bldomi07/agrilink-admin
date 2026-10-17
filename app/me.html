@@ -23,8 +23,6 @@
     .btn-outline { background: #fff; color: #1e7a3c; border: 1px solid #1e7a3c; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
     .roles-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .role-badge { background: #e8f3ec; color: #1e7a3c; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
-
-    /* Edit form (profile) */
     .edit-form { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid #eee; }
     .edit-form.show { display: block; }
     .edit-form label { display: block; margin-top: 12px; font-size: 13px; color: #333; font-weight: 600; }
@@ -44,8 +42,6 @@
     .edit-msg.ok    { color: #146c34; }
     .edit-msg.error { color: #b00020; }
     .edit-msg.info  { color: #1e7a3c; }
-
-    /* Listing rows */
     .row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #eee; }
     .row:last-child { border-bottom: 0; }
     .row-img { width: 68px; height: 68px; border-radius: 10px; background: #eef3ef; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #a8bfb0; }
@@ -70,8 +66,6 @@
     .tab-btn { padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; background: #f1f5f2; color: #555; border: 0; cursor: pointer; white-space: nowrap; }
     .tab-btn.active { background: #1e7a3c; color: #fff; }
     .hidden { display: none; }
-
-    /* Listing edit form */
     .listing-edit { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #dfe6e1; }
     .listing-edit.show { display: block; }
     .listing-edit label { display: block; margin-top: 10px; font-size: 12px; font-weight: 600; color: #333; }
@@ -136,7 +130,7 @@
     let activeTab = 'products';
     let keCounties = null, afProvinces = null;
     let editingListingId = null;
-    let editingKind = null;   // 'product' or 'listing'
+    let editingKind = null;
     let editingImageFile = null;
     let editingExistingImage = null;
 
@@ -331,7 +325,6 @@
         btn.addEventListener('click', async () => {
           const id = btn.dataset.id, kind = btn.dataset.kind, action = btn.dataset.action;
 
-          /* Edit — open inline form */
           if (action === 'edit') {
             openListingEdit(kind, id);
             return;
@@ -352,10 +345,7 @@
       });
     }
 
-    /* ============================================================
-       Listing edit
-       ============================================================ */
-
+    /* Listing edit */
     function openListingEdit(kind, id) {
       const container = document.getElementById('ledit-' + kind + '-' + id);
       if (!container) return;
@@ -378,7 +368,6 @@
       const titleOptions = TITLE_OPTIONS[type] || [];
       const selectedTitle = item.title || '';
 
-      /* Build title options */
       let titleOpts = '<option value="">— choose —</option>';
       titleOptions.forEach(t => {
         titleOpts += '<option value="' + escAttr(t) + '"' + (t === selectedTitle ? ' selected' : '') + '>' + escHtml(t) + '</option>';
@@ -386,7 +375,6 @@
       const isCustom = selectedTitle && !titleOptions.includes(selectedTitle);
       titleOpts += '<option value="__other__"' + (isCustom ? ' selected' : '') + '>Other (specify)</option>';
 
-      /* Build category options (only for products) */
       let catOpts = '';
       if (kind === 'product') {
         catOpts = CATEGORY_OPTIONS.map(c => {
@@ -449,7 +437,6 @@
       `;
       container.classList.add('show');
 
-      /* Live title switching */
       const titleSel = document.getElementById('le_title_' + kind + '_' + id);
       const titleOtherWrap = document.getElementById('le_titleOtherWrap_' + kind + '_' + id);
       titleSel.addEventListener('change', () => {
@@ -460,7 +447,6 @@
         }
       });
 
-      /* Photo */
       const photoBox = document.getElementById('le_photoBox_' + kind + '_' + id);
       const photoInput = document.getElementById('le_photoInput_' + kind + '_' + id);
       const photoLabel = document.getElementById('le_photoLabel_' + kind + '_' + id);
@@ -477,7 +463,6 @@
         photoBox.classList.add('has-file');
       });
 
-      /* Cancel */
       document.getElementById('le_cancel_' + kind + '_' + id).addEventListener('click', () => {
         container.classList.remove('show');
         editingImageFile = null;
@@ -485,7 +470,6 @@
         editingKind = null;
       });
 
-      /* Save */
       document.getElementById('le_save_' + kind + '_' + id).addEventListener('click', () => saveListingEdit(kind, id));
     }
 
@@ -496,7 +480,6 @@
       btn.disabled = true; btn.textContent = 'Saving…';
 
       try {
-        /* Resolve title */
         const titleSel = document.getElementById('le_title_' + kind + '_' + id);
         let title;
         if (titleSel.value === '__other__') {
@@ -508,7 +491,6 @@
           throw new Error('Please choose a title.');
         }
 
-        /* Upload new photo if chosen */
         let image_url = editingExistingImage;
         if (editingImageFile) {
           btn.textContent = 'Uploading…';
@@ -546,9 +528,7 @@
       }
     }
 
-    /* ============================================================
-       Profile edit (existing)
-       ============================================================ */
+    /* Profile edit */
     async function openProfileEdit() {
       document.getElementById('profileEditForm').classList.add('show');
 
