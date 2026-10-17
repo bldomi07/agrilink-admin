@@ -70,32 +70,46 @@
     <div id="view" class="view"></div>
   </div>
 
-  <script src="locations.js"></script>
+  <script src="app/locations.js"></script>
   <script src="supabase.js"></script>
   <script>
+    // Fallback locations in case app/locations.js fails to load
+    const FALLBACK_COUNTRIES = [
+      { c:'ke', n:'Kenya' },{ c:'ug', n:'Uganda' },{ c:'tz', n:'Tanzania' },{ c:'rw', n:'Rwanda' },
+      { c:'bi', n:'Burundi' },{ c:'ss', n:'South Sudan' },{ c:'et', n:'Ethiopia' },{ c:'so', n:'Somalia' },
+      { c:'sd', n:'Sudan' },{ c:'cd', n:'DR Congo' },{ c:'ng', n:'Nigeria' },{ c:'gh', n:'Ghana' },
+      { c:'za', n:'South Africa' },{ c:'us', n:'United States' },{ c:'gb', n:'United Kingdom' },
+      { c:'ca', n:'Canada' },{ c:'au', n:'Australia' },{ c:'in', n:'India' },{ c:'ae', n:'United Arab Emirates' }
+    ];
+
     const ALL_ROLES = [
-      { v: 'farmer', l: 'Farmer' },
-      { v: 'buyer', l: 'Buyer' },
-      { v: 'seller', l: 'Seller' },
-      { v: 'service_provider', l: 'Service Provider' },
-      { v: 'job_seeker', l: 'Job Seeker' },
-      { v: 'transport_provider', l: 'Transport Provider' },
-      { v: 'machinery_provider', l: 'Machinery Provider' }
+      { v: 'farmer', l: 'Farmer' },{ v: 'buyer', l: 'Buyer' },{ v: 'seller', l: 'Seller' },
+      { v: 'service_provider', l: 'Service Provider' },{ v: 'job_seeker', l: 'Job Seeker' },
+      { v: 'transport_provider', l: 'Transport Provider' },{ v: 'machinery_provider', l: 'Machinery Provider' }
     ];
 
     let currentView = '';
 
-    async function init() {
+    // Wait for the DOM to be fully loaded and scripts to be ready
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Check if locations.js loaded successfully
+      if (typeof COUNTRIES === 'undefined') {
+        window.COUNTRIES = FALLBACK_COUNTRIES;
+        console.warn("locations.js failed to load. Using fallback country list.");
+      }
+
       const session = await requireAuth();
       if (!session) return;
       const admin = await isAdmin();
       if (!admin) { await logout(); return; }
+      
       document.getElementById('whoami').textContent = session.user.email;
       document.getElementById('logoutBtn').addEventListener('click', logout);
+      
       document.querySelectorAll('.tile[data-view]').forEach(t => {
         t.addEventListener('click', () => loadView(t.dataset.view));
       });
-    }
+    });
 
     async function loadView(name) {
       currentView = name;
@@ -336,18 +350,32 @@
     async function openAdminProfileEdit(p) {
       const id = p.id;
       const countryName = p.country || 'Kenya';
-      const c = COUNTRIES.find(x => x.n === countryName) || { c: 'ke' };
       const countrySel = document.getElementById('f_country_' + id);
-      
-      populateCountries(countrySel, c.c);
+
+      // Use the global COUNTRIES array (loaded from locations.js) or fallback
+      const globalCountries = (typeof COUNTRIES !== 'undefined') ? COUNTRIES : FALLBACK_COUNTRIES;
+
+      let html = '<option value="">— choose country —</option>';
+      globalCountries.forEach(c => {
+        const sel = (c.n === countryName) ? ' selected' : '';
+        html += '<option value="' + c.c + '"' + sel + '>' + escapeHtml(c.n) + '</option>';
+      });
+      countrySel.innerHTML = html;
       
       countrySel.onchange = () => onAdminCountryChange(id, false);
+      
+      // If no country was selected initially, default to Kenya
+      if (!countrySel.value && globalCountries.length > 0) {
+        countrySel.value = globalCountries[0].c;
+      }
+
       await onAdminCountryChange(id, true, p);
     }
 
     function showAdminProfileBox(id, boxId) {
       ['f_keBox_', 'f_afBox_', 'f_geoBox_'].forEach(x => {
-        document.getElementById(x + id).classList.toggle('hidden', x !== boxId);
+        const el = document.getElementById(x + id);
+        if (el) el.classList.toggle('hidden', x !== boxId);
       });
     }
 
@@ -376,7 +404,10 @@
       if (!keCounties) {
         countySel.innerHTML = '<option value="">Loading counties…</option>';
         msg.className = 'edit-msg info'; msg.textContent = 'Loading Kenya locations…';
-        try { keCounties = await loadKenyaHierarchy(); }
+        try { 
+          if (typeof loadKenyaHierarchy === 'undefined') throw new Error('Location engine missing.');
+          keCounties = await loadKenyaHierarchy(); 
+        }
         catch (e) { countySel.innerHTML = '<option value="">Failed to load</option>'; msg.className='edit-msg error'; msg.textContent = e.message; return; }
       }
       fillSelect(countySel, keCounties.map(c => ({ value: geoName(c), label: geoName(c) })), '', '— choose county —');
@@ -424,7 +455,10 @@
       if (!afProvinces) {
         provSel.innerHTML = '<option value="">Loading provinces…</option>';
         msg.className = 'edit-msg info'; msg.textContent = 'Loading Afghanistan locations…';
-        try { afProvinces = await loadAfghanistanHierarchy(); }
+        try { 
+          if (typeof loadAfghanistanHierarchy === 'undefined') throw new Error('Location engine missing.');
+          afProvinces = await loadAfghanistanHierarchy(); 
+        }
         catch (e) { provSel.innerHTML = '<option value="">Failed to load</option>'; msg.className='edit-msg error'; msg.textContent = e.message; return; }
       }
       fillSelect(provSel, afProvinces.map(pr => ({ value: geoName(pr), label: geoName(pr) })), '', '— choose province —');
@@ -453,6 +487,7 @@
       const box = document.getElementById('f_geoLevels_' + id);
       box.innerHTML = '<p class="edit-msg info">Loading regions…</p>';
       try {
+        if (typeof geoCountryInfo === 'undefined') throw new Error('Location engine missing.');
         const country = await geoCountryInfo(code);
         if (!country) throw new Error('Country not found');
         box.innerHTML = '';
@@ -472,7 +507,8 @@
       msg.className = 'edit-msg'; msg.textContent = '';
       
       const code = document.getElementById('f_country_' + id).value;
-      const countryName = (COUNTRIES.find(c => c.c === code) || { n: code }).n;
+      const globalCountries = (typeof COUNTRIES !== 'undefined') ? COUNTRIES : FALLBACK_COUNTRIES;
+      const countryName = (globalCountries.find(c => c.c === code) || { n: code }).n;
 
       const selectedRoles = [];
       ALL_ROLES.forEach(r => {
@@ -1088,8 +1124,6 @@
       return String(str == null ? '' : str)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
-
-    init();
   </script>
 </body>
 </html>
