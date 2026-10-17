@@ -37,6 +37,11 @@
     .edit-msg { margin-top: 8px; font-size: 12px; text-align: center; min-height: 16px; }
     .edit-msg.ok { color: #146c34; }
     .edit-msg.error { color: #b00020; }
+
+    /* Search bar */
+    .search-bar { margin-bottom: 12px; display: flex; gap: 8px; }
+    .search-bar input { flex: 1; padding: 10px 14px; border: 1px solid #cfd8d2; border-radius: 8px; font-size: 14px; background: #fff; font-family: inherit; }
+    .search-bar button { padding: 10px 14px; background: #eee; border: 1px solid #cfd8d2; border-radius: 8px; font-weight: 600; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -75,6 +80,8 @@
       { v: 'machinery_provider', l: 'Machinery Provider' }
     ];
 
+    let currentView = '';
+
     async function init() {
       const session = await requireAuth();
       if (!session) return;
@@ -88,6 +95,7 @@
     }
 
     async function loadView(name) {
+      currentView = name;
       const view = document.getElementById('view');
       view.innerHTML = '<p class="small">Loading…</p>';
       try {
@@ -162,17 +170,54 @@
       view.innerHTML = '<h2>Admins</h2>' + tableFromRows(admins);
     }
 
-    // ---------------- PROFILES (editable) ----------------
+    // ---------------- PROFILES ----------------
+    let profilesCache = [];
+    let profileSearchTerm = '';
+
     async function renderProfiles(view) {
-      const profiles = await getProfiles();
-      if (!profiles || profiles.length === 0) {
+      if (profilesCache.length === 0) {
+        profilesCache = await getProfiles();
+      }
+      if (!profilesCache || profilesCache.length === 0) {
         view.innerHTML = '<h2>Profiles</h2><p class="small">No users yet.</p>';
         return;
       }
 
-      let html = '<h2>Profiles</h2>';
+      let html = `
+        <h2>Profiles</h2>
+        <div class="search-bar">
+          <input id="profileSearch" type="search" placeholder="Search name, phone, email…" value="${escapeAttr(profileSearchTerm)}">
+        </div>
+        <div id="profilesList"></div>
+      `;
+      view.innerHTML = html;
 
-      profiles.forEach(p => {
+      document.getElementById('profileSearch').addEventListener('input', (e) => {
+        profileSearchTerm = e.target.value.toLowerCase();
+        renderProfilesList(view);
+      });
+
+      renderProfilesList(view);
+    }
+
+    function renderProfilesList(view) {
+      const container = document.getElementById('profilesList');
+      const filtered = profilesCache.filter(p => {
+        if (!profileSearchTerm) return true;
+        const term = profileSearchTerm;
+        return (p.full_name || '').toLowerCase().includes(term) ||
+               (p.phone || '').toLowerCase().includes(term) ||
+               (p.email || '').toLowerCase().includes(term) ||
+               (p.county || '').toLowerCase().includes(term);
+      });
+
+      if (!filtered.length) {
+        container.innerHTML = '<p class="small">No profiles match your search.</p>';
+        return;
+      }
+
+      let html = '';
+      filtered.forEach(p => {
         const name = escapeHtml(p.full_name || p.user_name || '(no name)');
         const rolesArr = Array.isArray(p.roles) ? p.roles : [];
         const rolesText = rolesArr.join(', ');
@@ -198,26 +243,15 @@
             </div>
 
             <div class="edit-form" id="edit-${p.id}">
-              <label>Full name</label>
-              <input id="f_name_${p.id}" value="${escapeHtml(p.full_name || '')}">
-              <label>Phone</label>
-              <input id="f_phone_${p.id}" value="${escapeHtml(p.phone || '')}">
-              <label>Email</label>
-              <input id="f_email_${p.id}" value="${escapeHtml(p.email || '')}">
-
-              <label>Country</label>
-              <input id="f_country_${p.id}" value="${escapeHtml(p.country || '')}">
-              <label>Region / State</label>
-              <input id="f_region_${p.id}" value="${escapeHtml(p.region || '')}">
-              <label>County / District</label>
-              <input id="f_county_${p.id}" value="${escapeHtml(p.county || '')}">
-              <label>Sub-county</label>
-              <input id="f_sub_county_${p.id}" value="${escapeHtml(p.sub_county || '')}">
-              <label>Ward</label>
-              <input id="f_ward_${p.id}" value="${escapeHtml(p.ward || '')}">
-              <label>Town</label>
-              <input id="f_town_${p.id}" value="${escapeHtml(p.town || '')}">
-
+              <label>Full name</label><input id="f_name_${p.id}" value="${escapeHtml(p.full_name || '')}">
+              <label>Phone</label><input id="f_phone_${p.id}" value="${escapeHtml(p.phone || '')}">
+              <label>Email</label><input id="f_email_${p.id}" value="${escapeHtml(p.email || '')}">
+              <label>Country</label><input id="f_country_${p.id}" value="${escapeHtml(p.country || '')}">
+              <label>Region / State</label><input id="f_region_${p.id}" value="${escapeHtml(p.region || '')}">
+              <label>County / District</label><input id="f_county_${p.id}" value="${escapeHtml(p.county || '')}">
+              <label>Sub-county</label><input id="f_sub_county_${p.id}" value="${escapeHtml(p.sub_county || '')}">
+              <label>Ward</label><input id="f_ward_${p.id}" value="${escapeHtml(p.ward || '')}">
+              <label>Town</label><input id="f_town_${p.id}" value="${escapeHtml(p.town || '')}">
               <label>Roles</label>
               <div class="role-box">
                 ${ALL_ROLES.map(r => `
@@ -227,7 +261,6 @@
                   </div>
                 `).join('')}
               </div>
-
               <div class="edit-actions">
                 <button type="button" class="btn-cancel" data-action="cancel-edit" data-id="${p.id}">Cancel</button>
                 <button type="button" class="btn-save" data-action="save-edit" data-id="${p.id}">Save changes</button>
@@ -237,27 +270,22 @@
           </div>
         `;
       });
+      container.innerHTML = html;
 
-      view.innerHTML = html;
-
-      view.querySelectorAll('button[data-action]').forEach(btn => {
+      container.querySelectorAll('button[data-action]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const id = btn.dataset.id;
           const action = btn.dataset.action;
           const value = btn.dataset.value === 'true';
 
           if (action === 'edit') {
-            const form = document.getElementById('edit-' + id);
-            if (form) form.classList.toggle('show');
+            document.getElementById('edit-' + id).classList.toggle('show');
             return;
           }
-
           if (action === 'cancel-edit') {
-            const form = document.getElementById('edit-' + id);
-            if (form) form.classList.remove('show');
+            document.getElementById('edit-' + id).classList.remove('show');
             return;
           }
-
           if (action === 'save-edit') {
             const msg = document.getElementById('msg_' + id);
             msg.className = 'edit-msg'; msg.textContent = '';
@@ -265,14 +293,10 @@
 
             const selectedRoles = [];
             ALL_ROLES.forEach(r => {
-              const cb = document.getElementById('r_' + id + '_' + r.v);
-              if (cb && cb.checked) selectedRoles.push(r.v);
+              if (document.getElementById('r_' + id + '_' + r.v).checked) selectedRoles.push(r.v);
             });
             if (!selectedRoles.length) {
-              msg.className = 'edit-msg error';
-              msg.textContent = 'Tick at least one role.';
-              btn.disabled = false;
-              return;
+              msg.className = 'edit-msg error'; msg.textContent = 'Tick at least one role.'; btn.disabled = false; return;
             }
 
             const updates = {
@@ -290,12 +314,12 @@
 
             try {
               await updateProfile(id, updates);
-              msg.className = 'edit-msg ok';
-              msg.textContent = '✅ Saved.';
-              setTimeout(() => renderProfiles(view), 500);
+              msg.className = 'edit-msg ok'; msg.textContent = '✅ Saved.';
+              // Refresh cache
+              profilesCache = await getProfiles();
+              setTimeout(() => renderProfilesList(view), 500);
             } catch (err) {
-              msg.className = 'edit-msg error';
-              msg.textContent = '❌ ' + (err.message || 'Failed');
+              msg.className = 'edit-msg error'; msg.textContent = '❌ ' + (err.message || 'Failed');
               btn.disabled = false;
             }
             return;
@@ -306,20 +330,60 @@
             if (action === 'verify')   await updateProfile(id, { is_verified: value });
             if (action === 'activate') await updateProfile(id, { is_active: value });
             if (action === 'block')    await updateProfile(id, { is_blocked: value });
-            await renderProfiles(view);
+            profilesCache = await getProfiles();
+            renderProfilesList(view);
           } catch (err) { alert('Error: ' + (err.message || 'Failed')); btn.disabled = false; }
         });
       });
     }
 
     // ---------------- PRODUCTS ----------------
+    let productsCache = [];
+    let productSearchTerm = '';
+
     async function renderProducts(view) {
-      const products = await getProducts();
-      if (!products || products.length === 0) {
+      if (productsCache.length === 0) {
+        productsCache = await getProducts();
+      }
+      if (!productsCache || productsCache.length === 0) {
         view.innerHTML = '<h2>Products</h2><p class="small">No products yet.</p>'; return;
       }
-      let html = '<h2>Products</h2>';
-      products.forEach(p => {
+
+      let html = `
+        <h2>Products</h2>
+        <div class="search-bar">
+          <input id="productSearch" type="search" placeholder="Search title, seller, location…" value="${escapeAttr(productSearchTerm)}">
+        </div>
+        <div id="productsList"></div>
+      `;
+      view.innerHTML = html;
+
+      document.getElementById('productSearch').addEventListener('input', (e) => {
+        productSearchTerm = e.target.value.toLowerCase();
+        renderProductsList(view);
+      });
+
+      renderProductsList(view);
+    }
+
+    function renderProductsList(view) {
+      const container = document.getElementById('productsList');
+      const filtered = productsCache.filter(p => {
+        if (!productSearchTerm) return true;
+        const term = productSearchTerm;
+        return (p.title || '').toLowerCase().includes(term) ||
+               (p.seller_name || '').toLowerCase().includes(term) ||
+               (p.county || '').toLowerCase().includes(term) ||
+               (p.category || '').toLowerCase().includes(term);
+      });
+
+      if (!filtered.length) {
+        container.innerHTML = '<p class="small">No products match your search.</p>';
+        return;
+      }
+
+      let html = '';
+      filtered.forEach(p => {
         const title = escapeHtml(p.title || '(untitled)');
         const price = (p.currency || 'KES') + ' ' + (p.price ?? 0);
         const loc = [p.location, p.ward, p.sub_county, p.county].filter(Boolean).join(', ') || '—';
@@ -333,7 +397,6 @@
             <div class="small">${escapeHtml(price)} · ${p.quantity} ${escapeHtml(p.unit || '')}</div>
             <div class="small">Seller: ${escapeHtml(p.seller_name || '—')} ${escapeHtml(p.seller_phone || '')}</div>
             <div class="location-line">Location: <strong>${escapeHtml(loc)}</strong></div>
-            <div class="small">Category: ${escapeHtml(p.category || '—')}</div>
             <div class="profile-actions">
               <button class="btn-sm" data-action="feature" data-id="${p.id}" data-value="${!p.is_featured}">${p.is_featured ? 'Unfeature' : 'Feature'}</button>
               <button class="btn-sm" data-action="archive" data-id="${p.id}">Archive</button>
@@ -343,8 +406,9 @@
           </div>
         `;
       });
-      view.innerHTML = html;
-      view.querySelectorAll('button[data-action]').forEach(btn => {
+      container.innerHTML = html;
+
+      container.querySelectorAll('button[data-action]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const id = btn.dataset.id;
           const value = btn.dataset.value === 'true';
@@ -355,23 +419,62 @@
             if (action === 'archive') await updateProduct(id, { status: 'archived' });
             if (action === 'block')   await updateProduct(id, { status: 'blocked' });
             if (action === 'delete') {
-              if (!confirm('Delete this product permanently?')) { btn.disabled = false; return renderProducts(view); }
+              if (!confirm('Delete this product permanently?')) { btn.disabled = false; return renderProductsList(view); }
               await deleteProduct(id);
             }
-            await renderProducts(view);
+            productsCache = await getProducts();
+            renderProductsList(view);
           } catch (err) { alert('Error: ' + (err.message || 'Failed')); btn.disabled = false; }
         });
       });
     }
 
     // ---------------- LISTINGS ----------------
+    let listingsCache = [];
+    let listingSearchTerm = '';
+
     async function renderListings(view) {
-      const listings = await getAdminListings();
-      if (!listings || listings.length === 0) {
+      if (listingsCache.length === 0) {
+        listingsCache = await getAdminListings();
+      }
+      if (!listingsCache || listingsCache.length === 0) {
         view.innerHTML = '<h2>Listings</h2><p class="small">No listings yet.</p>'; return;
       }
-      let html = '<h2>Listings</h2>';
-      listings.forEach(p => {
+
+      let html = `
+        <h2>Listings</h2>
+        <div class="search-bar">
+          <input id="listingSearch" type="search" placeholder="Search title, seller, type…" value="${escapeAttr(listingSearchTerm)}">
+        </div>
+        <div id="listingsList"></div>
+      `;
+      view.innerHTML = html;
+
+      document.getElementById('listingSearch').addEventListener('input', (e) => {
+        listingSearchTerm = e.target.value.toLowerCase();
+        renderListingsList(view);
+      });
+
+      renderListingsList(view);
+    }
+
+    function renderListingsList(view) {
+      const container = document.getElementById('listingsList');
+      const filtered = listingsCache.filter(p => {
+        if (!listingSearchTerm) return true;
+        const term = listingSearchTerm;
+        return (p.title || '').toLowerCase().includes(term) ||
+               (p.seller_name || '').toLowerCase().includes(term) ||
+               (p.type || '').toLowerCase().includes(term);
+      });
+
+      if (!filtered.length) {
+        container.innerHTML = '<p class="small">No listings match your search.</p>';
+        return;
+      }
+
+      let html = '';
+      filtered.forEach(p => {
         const title = escapeHtml(p.title || '(untitled)');
         const price = (p.currency || 'KES') + ' ' + (p.price ?? 0);
         const loc = [p.location, p.ward, p.sub_county, p.county].filter(Boolean).join(', ') || '—';
@@ -381,12 +484,10 @@
               <strong>${title}</strong>
               <span class="badge">${escapeHtml(p.type || '')}</span>
               <span class="badge">${escapeHtml(p.status || 'active')}</span>
-              ${p.is_featured ? '<span class="badge badge-ok">featured</span>' : ''}
             </div>
             <div class="small">${escapeHtml(price)} · ${p.quantity} ${escapeHtml(p.unit || '')}</div>
             <div class="small">Seller: ${escapeHtml(p.seller_name || '—')} ${escapeHtml(p.seller_phone || '')}</div>
             <div class="location-line">Location: <strong>${escapeHtml(loc)}</strong></div>
-            <div class="small">Category: ${escapeHtml(p.category || '—')}</div>
             <div class="profile-actions">
               <button class="btn-sm" data-action="feature" data-id="${p.id}" data-value="${!p.is_featured}">${p.is_featured ? 'Unfeature' : 'Feature'}</button>
               <button class="btn-sm" data-action="archive" data-id="${p.id}">Archive</button>
@@ -396,8 +497,9 @@
           </div>
         `;
       });
-      view.innerHTML = html;
-      view.querySelectorAll('button[data-action]').forEach(btn => {
+      container.innerHTML = html;
+
+      container.querySelectorAll('button[data-action]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const id = btn.dataset.id;
           const value = btn.dataset.value === 'true';
@@ -408,10 +510,11 @@
             if (action === 'archive') await updateListing(id, { status: 'archived' });
             if (action === 'block')   await updateListing(id, { status: 'blocked' });
             if (action === 'delete') {
-              if (!confirm('Delete this listing permanently?')) { btn.disabled = false; return renderListings(view); }
+              if (!confirm('Delete this listing permanently?')) { btn.disabled = false; return renderListingsList(view); }
               await deleteListing(id);
             }
-            await renderListings(view);
+            listingsCache = await getAdminListings();
+            renderListingsList(view);
           } catch (err) { alert('Error: ' + (err.message || 'Failed')); btn.disabled = false; }
         });
       });
