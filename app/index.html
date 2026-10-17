@@ -164,14 +164,13 @@
 
   <script src="locations.js"></script>
   <script src="supabase.js"></script>
+  <script src="tour.js"></script>
   <script>
     let ALL_ITEMS = [];
     let state = { q: '', cat: '', type: 'product' };
     let adTimer = null;
 
-    /* active filter */
     let flt = { countryCode:'', countryName:'', region:'', county:'', sub_county:'', ward:'' };
-
     let keCounties = null;
     let afProvinces = null;
     let geoPath = [];
@@ -210,6 +209,7 @@
     async function init() {
       const session = await getSession();
       if (!session) { window.location.href = 'login.html'; return; }
+
       const authLink = document.getElementById('authLink');
       const sellLink = document.getElementById('sellLink');
       if (authLink) { authLink.textContent = 'My account'; authLink.href = 'me.html'; }
@@ -231,7 +231,7 @@
           state.cat = '';
           state.q = '';
           document.getElementById('searchInput').value = '';
-          resetFilter();
+          resetLocationFilter();
           renderCategoryChips();
           updateClearBtn();
           loadItems();
@@ -258,10 +258,7 @@
 
     /* ============================================================
        LOCATION FILTER
-       Same cascade as signup / me / post.
-       Fixed labels — no country-specific names.
        ============================================================ */
-
     function attachLocationHandlers() {
       const sel = document.getElementById('flt_country');
       let html = '<option value="">— All countries —</option>';
@@ -288,7 +285,7 @@
         updateSummary(); updateClearBtn(); render();
       });
       document.getElementById('locClearBtn').addEventListener('click', () => {
-        resetFilter();
+        resetLocationFilter();
         updateSummary(); updateClearBtn(); render();
       });
       bg.addEventListener('click', (e) => {
@@ -299,7 +296,7 @@
       });
     }
 
-    function resetFilter() {
+    function resetLocationFilter() {
       flt = { countryCode:'', countryName:'', region:'', county:'', sub_county:'', ward:'' };
       geoPath = [];
       document.getElementById('flt_country').value = '';
@@ -445,7 +442,6 @@
       updateSummary(); updateClearBtn(); render();
     }
 
-    /* Worldwide cascade — fixed labels, no country-specific names */
     async function loadGeoNamesCountry(code) {
       const box = document.getElementById('flt_geoLevels');
       box.innerHTML = '<p class="info">Loading…</p>';
@@ -528,6 +524,9 @@
       }
     }
 
+    /* ============================================================
+       FILTER HANDLERS (Text + Category)
+       ============================================================ */
     function attachFilterHandlers() {
       const searchInput = document.getElementById('searchInput');
       const clearBtn = document.getElementById('clearBtn');
@@ -537,10 +536,20 @@
         updateClearBtn();
         render();
       });
+
+      // ✅ REDIRECT TO DEDICATED SEARCH PAGE ON ENTER
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const q = searchInput.value.trim();
+          window.location.href = 'search.html' + (q ? '?q=' + encodeURIComponent(q) : '');
+        }
+      });
+
       clearBtn.addEventListener('click', () => {
         state.q = ''; state.cat = '';
         searchInput.value = '';
-        resetFilter();
+        resetLocationFilter();
         renderCategoryChips();
         updateClearBtn();
         render();
