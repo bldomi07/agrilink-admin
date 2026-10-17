@@ -19,31 +19,33 @@
     .who h1 { margin: 0 0 4px; font-size: 20px; color: #1c1c1c; }
     .who .meta { color: #666; font-size: 13px; margin: 2px 0; }
     .logout-btn { background: #fff; color: #b00020; border: 1px solid #b00020; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
-    .section-head { display: flex; justify-content: space-between; align-items: center; margin: 20px 4px 10px; }
-    .section-head h2 { font-size: 16px; margin: 0; color: #1e7a3c; }
     .btn-primary { background: #1e7a3c; color: #fff; text-decoration: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; border: 0; cursor: pointer; }
     .btn-outline { background: #fff; color: #1e7a3c; border: 1px solid #1e7a3c; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
     .roles-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .role-badge { background: #e8f3ec; color: #1e7a3c; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+
+    /* Edit form (profile) */
     .edit-form { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid #eee; }
     .edit-form.show { display: block; }
     .edit-form label { display: block; margin-top: 12px; font-size: 13px; color: #333; font-weight: 600; }
     .edit-form input, .edit-form select { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; font-family: inherit; }
-    .edit-form input:disabled, .edit-form select:disabled { opacity: 0.55; }
+    .edit-form textarea { width: 100%; padding: 12px; font-size: 16px; margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; background: #fbfdfb; font-family: inherit; min-height: 70px; resize: vertical; }
     .role-box { margin-top: 6px; border: 1px solid #cfd8d2; border-radius: 10px; padding: 4px 12px; background: #fbfdfb; }
     .role-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #eef3ef; }
     .role-row:last-child { border-bottom: 0; }
-    .role-row input[type=checkbox] { width: 20px; height: 20px; margin: 0; accent-color: #1e7a3c; flex-shrink: 0; }
-    .role-row label { margin: 0; font-weight: 500; font-size: 15px; color: #1c1c1c; flex: 1; cursor: pointer; padding: 4px 0; }
+    .role-row input[type=checkbox] { width: 20px; height: 20px; margin: 0; accent-color: #1e7a3c; }
+    .role-row label { margin: 0; font-weight: 500; font-size: 15px; color: #1c1c1c; flex: 1; cursor: pointer; }
     .edit-actions { display: flex; gap: 8px; margin-top: 16px; }
     .edit-actions button { flex: 1; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; border: 0; }
     .btn-save { background: #1e7a3c; color: #fff; }
     .btn-save:disabled { opacity: 0.6; }
     .btn-cancel { background: #eee; color: #333; }
-    .edit-msg { margin-top: 10px; font-size: 13px; text-align: center; }
+    .edit-msg { margin-top: 10px; font-size: 13px; text-align: center; min-height: 16px; }
     .edit-msg.ok    { color: #146c34; }
     .edit-msg.error { color: #b00020; }
     .edit-msg.info  { color: #1e7a3c; }
+
+    /* Listing rows */
     .row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #eee; }
     .row:last-child { border-bottom: 0; }
     .row-img { width: 68px; height: 68px; border-radius: 10px; background: #eef3ef; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #a8bfb0; }
@@ -68,6 +70,27 @@
     .tab-btn { padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; background: #f1f5f2; color: #555; border: 0; cursor: pointer; white-space: nowrap; }
     .tab-btn.active { background: #1e7a3c; color: #fff; }
     .hidden { display: none; }
+
+    /* Listing edit form */
+    .listing-edit { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #dfe6e1; }
+    .listing-edit.show { display: block; }
+    .listing-edit label { display: block; margin-top: 10px; font-size: 12px; font-weight: 600; color: #333; }
+    .listing-edit input, .listing-edit select, .listing-edit textarea {
+      width: 100%; padding: 10px; font-size: 14px; margin-top: 4px;
+      border: 1px solid #cfd8d2; border-radius: 8px; background: #fbfdfb; font-family: inherit;
+    }
+    .listing-edit textarea { min-height: 60px; resize: vertical; }
+    .listing-edit .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .photo-pick {
+      margin-top: 6px; border: 2px dashed #cfd8d2; border-radius: 10px;
+      padding: 12px; text-align: center; background: #fbfdfb;
+      cursor: pointer; font-size: 13px; color: #555;
+    }
+    .photo-pick.has-file { border-color: #1e7a3c; background: #e8f3ec; color: #146c34; font-weight: 600; }
+    .photo-pick input[type=file] { display: none; }
+    .photo-preview { margin-top: 8px; max-width: 100%; max-height: 140px; border-radius: 8px; display: none; }
+    .photo-preview.show { display: block; }
+    .current-photo { margin-top: 8px; max-width: 100%; max-height: 140px; border-radius: 8px; display: block; }
   </style>
 </head>
 <body>
@@ -94,17 +117,28 @@
       { v: 'transport_provider', l: 'Transport Provider' },{ v: 'machinery_provider', l: 'Machinery Provider' }
     ];
 
-    const GEO_LEVEL_LABELS = [
-      'Region / State',
-      'County / District',
-      'Sub-county / Sub-district',
-      'Ward / Local area'
+    const TITLE_OPTIONS = {
+      product: ['Maize','Beans','Rice','Wheat','Sorghum','Millet','Green grams (Ndengu)','Groundnuts','Potatoes','Sweet potatoes','Cassava','Tomatoes','Onions','Cabbage','Kale (Sukuma wiki)','Spinach','Carrots','Peas','Bananas','Avocado','Mangoes','Oranges','Pineapples','Watermelons','Pawpaw','Passion fruit','Cow','Bull','Heifer','Calf','Goat','Sheep','Ram','Pig','Sow','Rabbit','Donkey','Chicken (broilers)','Chicken (layers)','Cockerel','Hen','Duck','Turkey','Guinea fowl','Goose','Milk','Yoghurt','Cheese','Eggs','Maize seed','Bean seed','Vegetable seedlings','Fruit seedlings','Tree seedlings','Honey','Coffee','Tea','Macadamia','Sunflower','Fish','Fish fingerlings'],
+      service: ['Transport / Delivery','Ploughing','Planting','Weeding','Harvesting','Spraying / Pest control','Veterinary services','Artificial insemination (AI)','Extension / Advisory','Soil testing','Irrigation setup','Fencing','Welding / Repairs','Land clearing','Farm labour'],
+      job: ['Farm worker','Herdsman','Driver','Machine operator','Security guard','Sales person','Cook','House help'],
+      machinery: ['Tractor','Plough','Harrow','Planter','Harvester','Trailer','Water pump','Irrigation kit','Milking machine','Chaff cutter','Maize mill','Generator','Sprayer'],
+      farm: ['Farmland for sale','Farmland for lease','Farmland for rent','Ranch','Plot','Greenhouse','Poultry house','Fish pond']
+    };
+
+    const CATEGORY_OPTIONS = [
+      { v: '', l: '— choose —' },
+      { v: 'grain', l: 'Grain' },{ v: 'vegetable', l: 'Vegetables' },{ v: 'fruit', l: 'Fruits' },
+      { v: 'livestock', l: 'Livestock' },{ v: 'dairy', l: 'Dairy' },{ v: 'poultry', l: 'Poultry' },
+      { v: 'seed', l: 'Seeds' },{ v: 'other', l: 'Other' }
     ];
 
     let myProfile = null, myProducts = [], myListings = [];
     let activeTab = 'products';
     let keCounties = null, afProvinces = null;
-    let editGeoPath = [];
+    let editingListingId = null;
+    let editingKind = null;   // 'product' or 'listing'
+    let editingImageFile = null;
+    let editingExistingImage = null;
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -157,10 +191,10 @@
           </div>
           ${roleBadges}
           <div style="margin-top: 14px;">
-            <button class="btn-outline" id="editBtn">Edit profile</button>
+            <button class="btn-outline" id="editProfileBtn">Edit profile</button>
           </div>
 
-          <div class="edit-form" id="editForm">
+          <div class="edit-form" id="profileEditForm">
             <form id="profileForm">
               <label>Full name</label>
               <input id="edit_full_name" type="text" required value="${escapeAttr(myProfile && myProfile.full_name || '')}">
@@ -204,10 +238,10 @@
               </div>
 
               <div class="edit-actions">
-                <button type="button" class="btn-cancel" id="cancelEditBtn">Cancel</button>
-                <button type="submit" class="btn-save" id="saveBtn">Save changes</button>
+                <button type="button" class="btn-cancel" id="cancelProfileEditBtn">Cancel</button>
+                <button type="submit" class="btn-save" id="saveProfileBtn">Save profile</button>
               </div>
-              <p class="edit-msg" id="editMsg"></p>
+              <p class="edit-msg" id="profileMsg"></p>
             </form>
           </div>
         </div>
@@ -235,6 +269,7 @@
       if (!myListings.length) return '<div class="empty">You haven\'t posted any services, jobs, machinery or farms yet.<br><br><a class="btn-primary" href="post.html">+ Post a listing</a></div>';
       return myListings.map(p => listingRow(p, 'listing')).join('');
     }
+
     function listingRow(p, kind) {
       const img = p.image_url
         ? '<img src="' + escapeHtml(p.image_url) + '" alt="" onerror="this.parentNode.innerHTML=\'🌾\'">'
@@ -248,8 +283,9 @@
       const typeTag = kind === 'listing' && p.type ? '<span class="type-tag">' + escapeHtml(p.type) + '</span>' : '';
       const detailPage = kind === 'product' ? 'product.html' : 'listing.html';
       const detailUrl = detailPage + '?id=' + encodeURIComponent(p.id) + (kind === 'listing' ? '&type=' + p.type : '');
+
       return `
-        <div class="row">
+        <div class="row" data-row="${kind}-${p.id}">
           <div class="row-img">${img}</div>
           <div class="row-body">
             <p class="row-title">${typeTag}${escapeHtml(p.title || '(untitled)')} ${statusBadge}</p>
@@ -257,9 +293,11 @@
             ${place ? '<div class="row-meta">' + escapeHtml(place) + '</div>' : ''}
             <div class="row-actions">
               <a href="${detailUrl}">View</a>
+              <button data-action="edit" data-kind="${kind}" data-id="${p.id}">Edit</button>
               ${soldBtn}
               <button class="danger" data-action="delete" data-kind="${kind}" data-id="${p.id}">Delete</button>
             </div>
+            <div class="listing-edit" id="ledit-${kind}-${p.id}"></div>
           </div>
         </div>`;
     }
@@ -268,9 +306,9 @@
       const logoutBtn = document.getElementById('logoutBtn');
       if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
-      document.getElementById('editBtn').addEventListener('click', openEdit);
-      document.getElementById('cancelEditBtn').addEventListener('click', () => {
-        document.getElementById('editForm').classList.remove('show');
+      document.getElementById('editProfileBtn').addEventListener('click', openProfileEdit);
+      document.getElementById('cancelProfileEditBtn').addEventListener('click', () => {
+        document.getElementById('profileEditForm').classList.remove('show');
       });
       document.getElementById('profileForm').addEventListener('submit', saveProfile);
 
@@ -284,6 +322,7 @@
           attachRowHandlers();
         });
       });
+
       attachRowHandlers();
     }
 
@@ -291,6 +330,13 @@
       document.querySelectorAll('button[data-action]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const id = btn.dataset.id, kind = btn.dataset.kind, action = btn.dataset.action;
+
+          /* Edit — open inline form */
+          if (action === 'edit') {
+            openListingEdit(kind, id);
+            return;
+          }
+
           btn.disabled = true; const orig = btn.textContent; btn.textContent = '…';
           try {
             if (action === 'delete') {
@@ -306,43 +352,239 @@
       });
     }
 
-    async function openEdit() {
-      document.getElementById('editForm').classList.add('show');
+    /* ============================================================
+       Listing edit
+       ============================================================ */
+
+    function openListingEdit(kind, id) {
+      const container = document.getElementById('ledit-' + kind + '-' + id);
+      if (!container) return;
+
+      if (container.classList.contains('show')) {
+        container.classList.remove('show');
+        return;
+      }
+
+      const list = kind === 'product' ? myProducts : myListings;
+      const item = list.find(x => x.id === id);
+      if (!item) return;
+
+      editingListingId = id;
+      editingKind = kind;
+      editingImageFile = null;
+      editingExistingImage = item.image_url || null;
+
+      const type = kind === 'product' ? 'product' : (item.type || 'service');
+      const titleOptions = TITLE_OPTIONS[type] || [];
+      const selectedTitle = item.title || '';
+
+      /* Build title options */
+      let titleOpts = '<option value="">— choose —</option>';
+      titleOptions.forEach(t => {
+        titleOpts += '<option value="' + escAttr(t) + '"' + (t === selectedTitle ? ' selected' : '') + '>' + escHtml(t) + '</option>';
+      });
+      const isCustom = selectedTitle && !titleOptions.includes(selectedTitle);
+      titleOpts += '<option value="__other__"' + (isCustom ? ' selected' : '') + '>Other (specify)</option>';
+
+      /* Build category options (only for products) */
+      let catOpts = '';
+      if (kind === 'product') {
+        catOpts = CATEGORY_OPTIONS.map(c => {
+          const sel = (item.category || '') === c.v ? ' selected' : '';
+          return '<option value="' + escAttr(c.v) + '"' + sel + '>' + escHtml(c.l) + '</option>';
+        }).join('');
+      }
+
+      container.innerHTML = `
+        <label>Title</label>
+        <select id="le_title_${kind}_${id}">${titleOpts}</select>
+        <div id="le_titleOtherWrap_${kind}_${id}" style="display:${isCustom ? 'block' : 'none'};">
+          <label>Specify title</label>
+          <input id="le_titleOther_${kind}_${id}" value="${isCustom ? escAttr(selectedTitle) : ''}">
+        </div>
+
+        ${kind === 'product' ? '<label>Category</label><select id="le_category_' + kind + '_' + id + '">' + catOpts + '</select>' : ''}
+
+        <label>Description</label>
+        <textarea id="le_description_${kind}_${id}">${escHtml(item.description || '')}</textarea>
+
+        <div class="row2">
+          <div>
+            <label>Price</label>
+            <input id="le_price_${kind}_${id}" type="number" min="0" step="1" value="${item.price ?? 0}">
+          </div>
+          <div>
+            <label>Unit</label>
+            <input id="le_unit_${kind}_${id}" value="${escAttr(item.unit || 'unit')}">
+          </div>
+        </div>
+
+        <div class="row2">
+          <div>
+            <label>Quantity</label>
+            <input id="le_quantity_${kind}_${id}" type="number" min="1" step="1" value="${item.quantity ?? 1}">
+          </div>
+          <div>
+            <label>County</label>
+            <input id="le_county_${kind}_${id}" value="${escAttr(item.county || '')}">
+          </div>
+        </div>
+
+        <label>Town / area</label>
+        <input id="le_location_${kind}_${id}" value="${escAttr(item.location || '')}">
+
+        <label>Photo</label>
+        <div class="photo-pick" id="le_photoBox_${kind}_${id}">
+          <div id="le_photoLabel_${kind}_${id}">📷  Tap to change photo</div>
+          <input type="file" id="le_photoInput_${kind}_${id}" accept="image/*">
+        </div>
+        ${item.image_url ? '<img id="le_photoCurrent_' + kind + '_' + id + '" class="current-photo" src="' + escHtml(item.image_url) + '" alt="">' : ''}
+        <img id="le_photoPreview_${kind}_${id}" class="photo-preview" alt="">
+
+        <div class="edit-actions">
+          <button type="button" class="btn-cancel" id="le_cancel_${kind}_${id}">Cancel</button>
+          <button type="button" class="btn-save" id="le_save_${kind}_${id}">Save changes</button>
+        </div>
+        <p class="edit-msg" id="le_msg_${kind}_${id}"></p>
+      `;
+      container.classList.add('show');
+
+      /* Live title switching */
+      const titleSel = document.getElementById('le_title_' + kind + '_' + id);
+      const titleOtherWrap = document.getElementById('le_titleOtherWrap_' + kind + '_' + id);
+      titleSel.addEventListener('change', () => {
+        if (titleSel.value === '__other__') {
+          titleOtherWrap.style.display = 'block';
+        } else {
+          titleOtherWrap.style.display = 'none';
+        }
+      });
+
+      /* Photo */
+      const photoBox = document.getElementById('le_photoBox_' + kind + '_' + id);
+      const photoInput = document.getElementById('le_photoInput_' + kind + '_' + id);
+      const photoLabel = document.getElementById('le_photoLabel_' + kind + '_' + id);
+      const photoPreview = document.getElementById('le_photoPreview_' + kind + '_' + id);
+
+      photoBox.addEventListener('click', () => photoInput.click());
+      photoInput.addEventListener('change', (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        editingImageFile = f;
+        photoLabel.textContent = '📷  ' + f.name;
+        photoPreview.src = URL.createObjectURL(f);
+        photoPreview.classList.add('show');
+        photoBox.classList.add('has-file');
+      });
+
+      /* Cancel */
+      document.getElementById('le_cancel_' + kind + '_' + id).addEventListener('click', () => {
+        container.classList.remove('show');
+        editingImageFile = null;
+        editingListingId = null;
+        editingKind = null;
+      });
+
+      /* Save */
+      document.getElementById('le_save_' + kind + '_' + id).addEventListener('click', () => saveListingEdit(kind, id));
+    }
+
+    async function saveListingEdit(kind, id) {
+      const msg = document.getElementById('le_msg_' + kind + '_' + id);
+      const btn = document.getElementById('le_save_' + kind + '_' + id);
+      msg.className = 'edit-msg'; msg.textContent = '';
+      btn.disabled = true; btn.textContent = 'Saving…';
+
+      try {
+        /* Resolve title */
+        const titleSel = document.getElementById('le_title_' + kind + '_' + id);
+        let title;
+        if (titleSel.value === '__other__') {
+          title = document.getElementById('le_titleOther_' + kind + '_' + id).value.trim();
+          if (!title) throw new Error('Please type the title.');
+        } else if (titleSel.value) {
+          title = titleSel.value;
+        } else {
+          throw new Error('Please choose a title.');
+        }
+
+        /* Upload new photo if chosen */
+        let image_url = editingExistingImage;
+        if (editingImageFile) {
+          btn.textContent = 'Uploading…';
+          image_url = await uploadImage(editingImageFile, kind === 'product' ? 'product' : 'listing');
+        }
+
+        const updates = {
+          title,
+          description: document.getElementById('le_description_' + kind + '_' + id).value.trim() || null,
+          price:       Number(document.getElementById('le_price_' + kind + '_' + id).value) || 0,
+          unit:        document.getElementById('le_unit_' + kind + '_' + id).value.trim() || 'unit',
+          quantity:    Number(document.getElementById('le_quantity_' + kind + '_' + id).value) || 1,
+          county:      document.getElementById('le_county_' + kind + '_' + id).value.trim() || null,
+          location:    document.getElementById('le_location_' + kind + '_' + id).value.trim() || null,
+          image_url:   image_url
+        };
+
+        if (kind === 'product') {
+          const catSel = document.getElementById('le_category_' + kind + '_' + id);
+          if (catSel) updates.category = catSel.value || null;
+          await updateProduct(id, updates);
+        } else {
+          await updateListing(id, updates);
+        }
+
+        msg.className = 'edit-msg ok';
+        msg.textContent = '✅ Saved.';
+        editingImageFile = null;
+        setTimeout(init, 600);
+      } catch (err) {
+        msg.className = 'edit-msg error';
+        msg.textContent = '❌ ' + (err.message || 'Failed');
+        btn.disabled = false;
+        btn.textContent = 'Save changes';
+      }
+    }
+
+    /* ============================================================
+       Profile edit (existing)
+       ============================================================ */
+    async function openProfileEdit() {
+      document.getElementById('profileEditForm').classList.add('show');
 
       const countryName = (myProfile && myProfile.country) || 'Kenya';
       const c = COUNTRIES.find(x => x.n === countryName) || { c: 'ke' };
       const countrySel = document.getElementById('edit_country');
       populateCountries(countrySel, c.c);
-      countrySel.addEventListener('change', () => onEditCountry(false));
+      countrySel.addEventListener('change', () => onProfileCountry(false));
 
-      await onEditCountry(true);
+      await onProfileCountry(true);
     }
 
-    function showEditBox(id) {
+    function showProfileBox(id) {
       ['edit_kenyaBox','edit_afBox','edit_geoBox'].forEach(x => {
         document.getElementById(x).classList.toggle('hidden', x !== id);
       });
     }
 
-    async function onEditCountry(isPrefill) {
+    async function onProfileCountry(isPrefill) {
       const code = document.getElementById('edit_country').value;
-      editGeoPath = [];
       if (code === 'ke') {
-        showEditBox('edit_kenyaBox');
-        await loadKenyaForEdit(isPrefill);
+        showProfileBox('edit_kenyaBox');
+        await loadKenyaForProfile(isPrefill);
       } else if (code === 'af') {
-        showEditBox('edit_afBox');
-        await loadAfForEdit(isPrefill);
+        showProfileBox('edit_afBox');
+        await loadAfForProfile(isPrefill);
       } else if (code) {
-        showEditBox('edit_geoBox');
-        await loadGeoForEdit(code, isPrefill);
+        showProfileBox('edit_geoBox');
+        await loadGeoForProfile(code);
       } else {
-        showEditBox('');
+        showProfileBox('');
       }
     }
 
-    async function loadKenyaForEdit(isPrefill) {
-      const msg = document.getElementById('editMsg');
+    async function loadKenyaForProfile(isPrefill) {
+      const msg = document.getElementById('profileMsg');
       const countySel = document.getElementById('edit_ke_county');
       const subSel = document.getElementById('edit_ke_sub');
       const wardSel = document.getElementById('edit_ke_ward');
@@ -389,8 +631,8 @@
       };
     }
 
-    async function loadAfForEdit(isPrefill) {
-      const msg = document.getElementById('editMsg');
+    async function loadAfForProfile(isPrefill) {
+      const msg = document.getElementById('profileMsg');
       const provSel = document.getElementById('edit_af_province');
       const distSel = document.getElementById('edit_af_district');
       if (!afProvinces) {
@@ -421,83 +663,27 @@
       };
     }
 
-    // ---------- Edit: worldwide cascade (max 4 levels) ----------
-    async function loadGeoForEdit(code, isPrefill) {
+    async function loadGeoForProfile(code) {
       const box = document.getElementById('edit_geoLevels');
       box.innerHTML = '<p class="edit-msg info">Loading regions…</p>';
       try {
         const country = await geoCountryInfo(code);
         if (!country) throw new Error('Country not found');
         box.innerHTML = '';
-        editGeoPath = [];
-        await renderEditGeoLevel(0, country.geonameId, isPrefill);
+        const lab = document.createElement('label'); lab.textContent = 'Region / State';
+        const sel = document.createElement('select'); sel.innerHTML = '<option value="">Loading…</option>';
+        box.appendChild(lab); box.appendChild(sel);
+        const kids = await geoChildren(country.geonameId);
+        fillSelect(sel, kids.map(k => ({ value: k.geonameId, label: k.name })), '', '— choose —');
       } catch (e) {
         box.innerHTML = '<p class="edit-msg error">' + escapeHtml(e.message) + '</p>';
       }
     }
 
-    async function renderEditGeoLevel(level, parentId, isPrefill) {
-      editGeoPath = editGeoPath.slice(0, level);
-
-      const box = document.getElementById('edit_geoLevels');
-      while (box.children.length > level * 2) box.removeChild(box.lastChild);
-
-      const lab = document.createElement('label');
-      lab.textContent = GEO_LEVEL_LABELS[level] || ('Level ' + (level + 1));
-
-      const sel = document.createElement('select');
-      sel.innerHTML = '<option value="">Loading…</option>';
-
-      box.appendChild(lab);
-      box.appendChild(sel);
-
-      try {
-        const kids = await geoChildren(parentId);
-        if (!kids.length) {
-          box.removeChild(lab);
-          box.removeChild(sel);
-          return;
-        }
-
-        fillSelect(sel, kids.map(k => ({ value: k.geonameId, label: k.name })), '', '— choose —');
-
-        /* Prefill from profile: level 0 -> region, 1 -> county, 2 -> sub_county, 3 -> ward */
-        const prefilledName =
-          level === 0 ? (myProfile && myProfile.region) :
-          level === 1 ? (myProfile && myProfile.county) :
-          level === 2 ? (myProfile && myProfile.sub_county) :
-          level === 3 ? (myProfile && myProfile.ward) : null;
-
-        if (isPrefill && prefilledName) {
-          const match = kids.find(k => k.name === prefilledName);
-          if (match) {
-            sel.value = match.geonameId;
-            editGeoPath[level] = { id: match.geonameId, name: match.name };
-            if (level + 1 < GEO_LEVEL_LABELS.length) {
-              await renderEditGeoLevel(level + 1, match.geonameId, true);
-            }
-          }
-        }
-
-        sel.addEventListener('change', async () => {
-          const id = sel.value;
-          if (!id) return;
-          const name = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
-          editGeoPath[level] = { id: id, name: name };
-          if (level + 1 < GEO_LEVEL_LABELS.length) {
-            await renderEditGeoLevel(level + 1, id, false);
-          }
-        });
-      } catch (e) {
-        box.removeChild(lab);
-        box.removeChild(sel);
-      }
-    }
-
     async function saveProfile(e) {
       e.preventDefault();
-      const msg = document.getElementById('editMsg');
-      const btn = document.getElementById('saveBtn');
+      const msg = document.getElementById('profileMsg');
+      const btn = document.getElementById('saveProfileBtn');
       msg.className = 'edit-msg'; msg.textContent = '';
 
       const code = document.getElementById('edit_country').value;
@@ -516,31 +702,25 @@
         county = document.getElementById('edit_af_province').value || null;
         sub_county = document.getElementById('edit_af_district').value || null;
       } else if (code) {
-        if (editGeoPath[0]) region = editGeoPath[0].name;
-        if (editGeoPath[1]) county = editGeoPath[1].name;
-        if (editGeoPath[2]) sub_county = editGeoPath[2].name;
-        if (editGeoPath[3]) ward = editGeoPath[3].name;
+        const sel = document.querySelector('#edit_geoLevels select');
+        if (sel && sel.value) {
+          const opt = sel.options[sel.selectedIndex];
+          region = opt ? opt.text : null;
+        }
       }
 
       btn.disabled = true; btn.textContent = 'Saving…';
       try {
         const s = await getSession();
-
-        const payload = {
+        const r = await db.from('profiles').update({
           full_name:  document.getElementById('edit_full_name').value.trim(),
           phone:      document.getElementById('edit_phone').value.trim(),
           country:    countryName,
-          county:     county,
-          sub_county: sub_county,
-          ward:       ward,
-          region:     region,
+          county, sub_county, ward, region,
           town:       document.getElementById('edit_town').value.trim() || null,
-          roles:      roles
-        };
-
-        const r = await db.from('profiles').update(payload).eq('id', s.user.id).select();
+          roles
+        }).eq('id', s.user.id).select();
         if (r.error) throw r.error;
-
         msg.className = 'edit-msg ok';
         msg.textContent = '✅ Saved.';
         setTimeout(init, 600);
@@ -549,12 +729,18 @@
         msg.textContent = err.message || 'Failed to save.';
         btn.disabled = false;
       } finally {
-        btn.textContent = 'Save changes';
+        btn.textContent = 'Save profile';
       }
     }
 
-    function escapeHtml(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
     function escapeAttr(s) { return escapeHtml(s); }
+    function escHtml(s) { return escapeHtml(s); }
+    function escAttr(s) { return escapeHtml(s); }
   </script>
 </body>
 </html>
