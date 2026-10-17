@@ -315,7 +315,6 @@
             try {
               await updateProfile(id, updates);
               msg.className = 'edit-msg ok'; msg.textContent = '✅ Saved.';
-              // Refresh cache
               profilesCache = await getProfiles();
               setTimeout(() => renderProfilesList(view), 500);
             } catch (err) {
@@ -521,14 +520,65 @@
     }
 
     // ---------------- REPORTS ----------------
+    let reportsShowOnlyOpen = false;
+
+    function reportTargetKind(target_type) {
+      const t = String(target_type || '').toLowerCase();
+      if (t === 'product' || t === 'products') return 'product';
+      if (t === 'listing' || t === 'listings' || t === 'service' || t === 'job') return 'listing';
+      if (t === 'profile' || t === 'user' || t === 'users' || t === 'account') return 'profile';
+      return null;
+    }
+
     async function renderReports(view) {
       const reports = await getReports();
       if (!reports || reports.length === 0) {
         view.innerHTML = '<h2>Reports</h2><p class="small">No reports yet.</p>'; return;
       }
-      let html = '<h2>Reports</h2>';
-      reports.forEach(r => {
+
+      const openCount = reports.filter(r => r.status === 'open').length;
+
+      let html = `
+        <h2>Reports</h2>
+        <div style="display:flex; gap:8px; margin-bottom:12px; align-items:center; flex-wrap:wrap;">
+          <button id="reportsFilterBtn" class="btn-sm ${reportsShowOnlyOpen ? 'btn-danger' : ''}">
+            ${reportsShowOnlyOpen ? '🔒 Showing open only — tap to show all' : '👁 Showing all — tap to show open only'}
+          </button>
+          <span class="small">${openCount} open · ${reports.length} total</span>
+        </div>
+      `;
+
+      const visibleReports = reportsShowOnlyOpen
+        ? reports.filter(r => r.status === 'open')
+        : reports;
+
+      if (visibleReports.length === 0) {
+        html += '<p class="small">No open reports. 🎉</p>';
+      }
+
+      visibleReports.forEach(r => {
         const when = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+        const kind = reportTargetKind(r.target_type);
+        const isOpen = r.status === 'open';
+
+        // Context-aware quick actions (only shown for open reports we know how to route)
+        let quickActions = '';
+        if (isOpen && kind === 'product') {
+          quickActions = `
+            <button class="btn-sm btn-danger" data-action="block-target" data-id="${r.id}" data-kind="product" data-target="${r.target_id}">🚫 Block Product</button>
+            <button class="btn-sm btn-danger" data-action="delete-target" data-id="${r.id}" data-kind="product" data-target="${r.target_id}">🗑 Delete Product</button>
+          `;
+        } else if (isOpen && kind === 'listing') {
+          quickActions = `
+            <button class="btn-sm btn-danger" data-action="block-target" data-id="${r.id}" data-kind="listing" data-target="${r.target_id}">🚫 Block Listing</button>
+            <button class="btn-sm btn-danger" data-action="delete-target" data-id="${r.id}" data-kind="listing" data-target="${r.target_id}">🗑 Delete Listing</button>
+          `;
+        } else if (isOpen && kind === 'profile') {
+          quickActions = `
+            <button class="btn-sm btn-danger" data-action="block-target" data-id="${r.id}" data-kind="profile" data-target="${r.target_id}">🚫 Block User</button>
+          `;
+        }
+
         html += `
           <div class="profile-card">
             <div class="profile-head">
@@ -539,23 +589,80 @@
             ${r.details ? '<div class="small">Details: ' + escapeHtml(r.details) + '</div>' : ''}
             <div class="small">Target ID: <code>${escapeHtml(r.target_id)}</code></div>
             <div class="small">Reported: ${escapeHtml(when)}</div>
+            ${r.admin_note ? '<div class="small" style="color:#146c34;">Admin note: ' + escapeHtml(r.admin_note) + '</div>' : ''}
+            ${r.status !== 'open' && r.resolved_at
+              ? '<div class="small">Closed: ' + escapeHtml(new Date(r.resolved_at).toLocaleString()) + '</div>'
+              : ''}
             <div class="profile-actions">
-              <button class="btn-sm" data-action="resolve" data-id="${r.id}">Resolve</button>
-              <button class="btn-sm" data-action="dismiss" data-id="${r.id}">Dismiss</button>
+              ${quickActions}
+              ${r.status === 'open'
+                ? `<button class="btn-sm" data-action="resolve" data-id="${r.id}">Resolve</button>
+                   <button class="btn-sm" data-action="dismiss" data-id="${r.id}">Dismiss</button>`
+                : `<button class="btn-sm" data-action="reopen" data-id="${r.id}">↩ Reopen</button>`}
               <button class="btn-sm btn-danger" data-action="delete" data-id="${r.id}">Delete</button>
             </div>
           </div>
         `;
       });
+
       view.innerHTML = html;
+
+      const filterBtn = view.querySelector('#reportsFilterBtn');
+      if (filterBtn) filterBtn.addEventListener('click', () => {
+        reportsShowOnlyOpen = !reportsShowOnlyOpen;
+        renderReports(view);
+      });
+
       view.querySelectorAll('button[data-action]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const id = btn.dataset.id;
           const action = btn.dataset.action;
+
+          // ---- Quick actions that hit the target AND auto-resolve the report ----
+          if (action === 'block-target' || action === 'delete-target') {
+            const kind = btn.dataset.kind;
+            const targetId = btn.dataset.target;
+
+            const verb = action === 'delete-target' ? 'Delete' : 'Block';
+            const label = kind === 'product' ? 'product' : kind === 'listing' ? 'listing' : 'user';
+            if (!confirm(`${verb} this ${label} permanently? This will also resolve the report.`)) return;
+
+            btn.disabled = true; btn.textContent = '…';
+            try {
+              if (kind === 'product') {
+                if (action === 'delete-target') await deleteProduct(targetId);
+                else await updateProduct(targetId, { status: 'blocked' });
+              } else if (kind === 'listing') {
+                if (action === 'delete-target') await deleteListing(targetId);
+                else await updateListing(targetId, { status: 'blocked' });
+              } else if (kind === 'profile') {
+                await updateProfile(targetId, { is_blocked: true });
+              }
+
+              const note = 'Actioned: ' +
+                           (kind === 'product' ? 'product' : kind === 'listing' ? 'listing' : 'user') +
+                           (action === 'delete-target' ? ' deleted' : ' blocked');
+              await updateReport(id, { status: 'resolved', admin_note: note });
+
+              // Bust caches so other views reflect the change
+              productsCache = [];
+              listingsCache = [];
+              profilesCache = [];
+
+              await renderReports(view);
+            } catch (err) {
+              alert('Error: ' + (err.message || 'Failed'));
+              btn.disabled = false;
+            }
+            return;
+          }
+
+          // ---- Existing behaviour ----
           btn.disabled = true; btn.textContent = '…';
           try {
             if (action === 'resolve') await updateReport(id, { status: 'resolved' });
             if (action === 'dismiss') await updateReport(id, { status: 'dismissed' });
+            if (action === 'reopen')  await updateReport(id, { status: 'open', admin_note: null });
             if (action === 'delete') {
               if (!confirm('Delete this report?')) { btn.disabled = false; return renderReports(view); }
               await db.from('reports').delete().eq('id', id);
