@@ -23,7 +23,7 @@
     .edit-form { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #dfe6e1; }
     .edit-form.show { display: block; }
     .edit-form label { display: block; margin-top: 10px; font-size: 12px; font-weight: 600; color: #333; }
-    .edit-form input { width: 100%; padding: 10px; font-size: 14px; margin-top: 4px; border: 1px solid #cfd8d2; border-radius: 8px; background: #fbfdfb; font-family: inherit; }
+    .edit-form input, .edit-form select { width: 100%; padding: 10px; font-size: 14px; margin-top: 4px; border: 1px solid #cfd8d2; border-radius: 8px; background: #fbfdfb; font-family: inherit; }
     .role-box { margin-top: 4px; border: 1px solid #cfd8d2; border-radius: 8px; padding: 2px 10px; background: #fbfdfb; }
     .role-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #eef3ef; }
     .role-row:last-child { border-bottom: 0; }
@@ -37,6 +37,8 @@
     .edit-msg { margin-top: 8px; font-size: 12px; text-align: center; min-height: 16px; }
     .edit-msg.ok { color: #146c34; }
     .edit-msg.error { color: #b00020; }
+    .edit-msg.info { color: #1e7a3c; }
+    .hidden { display: none !important; }
 
     /* Search bar */
     .search-bar { margin-bottom: 12px; display: flex; gap: 8px; }
@@ -68,6 +70,7 @@
     <div id="view" class="view"></div>
   </div>
 
+  <script src="locations.js"></script>
   <script src="supabase.js"></script>
   <script>
     const ALL_ROLES = [
@@ -173,6 +176,7 @@
     // ---------------- PROFILES ----------------
     let profilesCache = [];
     let profileSearchTerm = '';
+    let keCounties = null, afProvinces = null;
 
     async function renderProfiles(view) {
       if (profilesCache.length === 0) {
@@ -245,13 +249,34 @@
             <div class="edit-form" id="edit-${p.id}">
               <label>Full name</label><input id="f_name_${p.id}" value="${escapeHtml(p.full_name || '')}">
               <label>Phone</label><input id="f_phone_${p.id}" value="${escapeHtml(p.phone || '')}">
-              <label>Email</label><input id="f_email_${p.id}" value="${escapeHtml(p.email || '')}">
-              <label>Country</label><input id="f_country_${p.id}" value="${escapeHtml(p.country || '')}">
-              <label>Region / State</label><input id="f_region_${p.id}" value="${escapeHtml(p.region || '')}">
-              <label>County / District</label><input id="f_county_${p.id}" value="${escapeHtml(p.county || '')}">
-              <label>Sub-county</label><input id="f_sub_county_${p.id}" value="${escapeHtml(p.sub_county || '')}">
-              <label>Ward</label><input id="f_ward_${p.id}" value="${escapeHtml(p.ward || '')}">
-              <label>Town</label><input id="f_town_${p.id}" value="${escapeHtml(p.town || '')}">
+              <label>Email (read-only)</label><input value="${escapeHtml(p.email || '')}" disabled style="background:#eee; color:#777;">
+              
+              <label>Country</label>
+              <select id="f_country_${p.id}"></select>
+
+              <div id="f_keBox_${p.id}" class="hidden">
+                <label>County</label>
+                <select id="f_ke_county_${p.id}"></select>
+                <label>Sub-county</label>
+                <select id="f_ke_sub_${p.id}" disabled><option value="">—</option></select>
+                <label>Ward</label>
+                <select id="f_ke_ward_${p.id}" disabled><option value="">—</option></select>
+              </div>
+
+              <div id="f_afBox_${p.id}" class="hidden">
+                <label>Province</label>
+                <select id="f_af_prov_${p.id}"></select>
+                <label>District</label>
+                <select id="f_af_dist_${p.id}" disabled><option value="">—</option></select>
+              </div>
+
+              <div id="f_geoBox_${p.id}" class="hidden">
+                <div id="f_geoLevels_${p.id}"></div>
+              </div>
+
+              <label>Town / City / Locality</label>
+              <input id="f_town_${p.id}" value="${escapeHtml(p.town || '')}">
+
               <label>Roles</label>
               <div class="role-box">
                 ${ALL_ROLES.map(r => `
@@ -279,7 +304,12 @@
           const value = btn.dataset.value === 'true';
 
           if (action === 'edit') {
-            document.getElementById('edit-' + id).classList.toggle('show');
+            const form = document.getElementById('edit-' + id);
+            form.classList.toggle('show');
+            if (form.classList.contains('show')) {
+              const p = profilesCache.find(x => x.id === id);
+              await openAdminProfileEdit(p);
+            }
             return;
           }
           if (action === 'cancel-edit') {
@@ -287,40 +317,7 @@
             return;
           }
           if (action === 'save-edit') {
-            const msg = document.getElementById('msg_' + id);
-            msg.className = 'edit-msg'; msg.textContent = '';
-            btn.disabled = true;
-
-            const selectedRoles = [];
-            ALL_ROLES.forEach(r => {
-              if (document.getElementById('r_' + id + '_' + r.v).checked) selectedRoles.push(r.v);
-            });
-            if (!selectedRoles.length) {
-              msg.className = 'edit-msg error'; msg.textContent = 'Tick at least one role.'; btn.disabled = false; return;
-            }
-
-            const updates = {
-              full_name:  document.getElementById('f_name_' + id).value.trim(),
-              phone:      document.getElementById('f_phone_' + id).value.trim() || null,
-              email:      document.getElementById('f_email_' + id).value.trim() || null,
-              country:    document.getElementById('f_country_' + id).value.trim() || null,
-              region:     document.getElementById('f_region_' + id).value.trim() || null,
-              county:     document.getElementById('f_county_' + id).value.trim() || null,
-              sub_county: document.getElementById('f_sub_county_' + id).value.trim() || null,
-              ward:       document.getElementById('f_ward_' + id).value.trim() || null,
-              town:       document.getElementById('f_town_' + id).value.trim() || null,
-              roles:      selectedRoles
-            };
-
-            try {
-              await updateProfile(id, updates);
-              msg.className = 'edit-msg ok'; msg.textContent = '✅ Saved.';
-              profilesCache = await getProfiles();
-              setTimeout(() => renderProfilesList(view), 500);
-            } catch (err) {
-              msg.className = 'edit-msg error'; msg.textContent = '❌ ' + (err.message || 'Failed');
-              btn.disabled = false;
-            }
+            await saveAdminProfileEdit(id, view);
             return;
           }
 
@@ -334,6 +331,192 @@
           } catch (err) { alert('Error: ' + (err.message || 'Failed')); btn.disabled = false; }
         });
       });
+    }
+
+    async function openAdminProfileEdit(p) {
+      const id = p.id;
+      const countryName = p.country || 'Kenya';
+      const c = COUNTRIES.find(x => x.n === countryName) || { c: 'ke' };
+      const countrySel = document.getElementById('f_country_' + id);
+      
+      populateCountries(countrySel, c.c);
+      
+      countrySel.onchange = () => onAdminCountryChange(id, false);
+      await onAdminCountryChange(id, true, p);
+    }
+
+    function showAdminProfileBox(id, boxId) {
+      ['f_keBox_', 'f_afBox_', 'f_geoBox_'].forEach(x => {
+        document.getElementById(x + id).classList.toggle('hidden', x !== boxId);
+      });
+    }
+
+    async function onAdminCountryChange(id, isPrefill, p) {
+      const code = document.getElementById('f_country_' + id).value;
+      if (code === 'ke') {
+        showAdminProfileBox(id, 'f_keBox_');
+        await loadKenyaForAdmin(id, isPrefill, p);
+      } else if (code === 'af') {
+        showAdminProfileBox(id, 'f_afBox_');
+        await loadAfForAdmin(id, isPrefill, p);
+      } else if (code) {
+        showAdminProfileBox(id, 'f_geoBox_');
+        await loadGeoForAdmin(id, code);
+      } else {
+        showAdminProfileBox(id, '');
+      }
+    }
+
+    async function loadKenyaForAdmin(id, isPrefill, p) {
+      const msg = document.getElementById('msg_' + id);
+      const countySel = document.getElementById('f_ke_county_' + id);
+      const subSel = document.getElementById('f_ke_sub_' + id);
+      const wardSel = document.getElementById('f_ke_ward_' + id);
+
+      if (!keCounties) {
+        countySel.innerHTML = '<option value="">Loading counties…</option>';
+        msg.className = 'edit-msg info'; msg.textContent = 'Loading Kenya locations…';
+        try { keCounties = await loadKenyaHierarchy(); }
+        catch (e) { countySel.innerHTML = '<option value="">Failed to load</option>'; msg.className='edit-msg error'; msg.textContent = e.message; return; }
+      }
+      fillSelect(countySel, keCounties.map(c => ({ value: geoName(c), label: geoName(c) })), '', '— choose county —');
+      msg.textContent = ''; msg.className = 'edit-msg';
+
+      if (isPrefill && p && p.county) {
+        countySel.value = p.county;
+        const county = keCounties.find(c => geoName(c) === p.county);
+        if (county) {
+          const subs = geoChildrenOf(county).map(s => ({ value: geoName(s), label: geoName(s) }));
+          fillSelect(subSel, subs, '', '— choose sub-county —'); subSel.disabled = false;
+          if (p.sub_county) {
+            subSel.value = p.sub_county;
+            const sub = geoChildrenOf(county).find(s => geoName(s) === p.sub_county);
+            if (sub) {
+              const wards = wardListOf(sub).map(w => ({ value: geoName(w), label: geoName(w) }));
+              fillSelect(wardSel, wards, '', '— choose ward —'); wardSel.disabled = false;
+              if (p.ward) wardSel.value = p.ward;
+            }
+          }
+        }
+      }
+
+      countySel.onchange = () => {
+        const cname = countySel.value;
+        if (!cname) { subSel.innerHTML = '<option value="">—</option>'; subSel.disabled = true; wardSel.innerHTML = '<option value="">—</option>'; wardSel.disabled = true; return; }
+        const county = keCounties.find(c => geoName(c) === cname);
+        fillSelect(subSel, geoChildrenOf(county).map(s => ({ value: geoName(s), label: geoName(s) })), '', '— choose sub-county —'); subSel.disabled = false;
+        wardSel.innerHTML = '<option value="">—</option>'; wardSel.disabled = true;
+      };
+      subSel.onchange = () => {
+        const cname = countySel.value, sname = subSel.value;
+        if (!cname || !sname) { wardSel.innerHTML = '<option value="">—</option>'; wardSel.disabled = true; return; }
+        const county = keCounties.find(c => geoName(c) === cname);
+        const sub = geoChildrenOf(county).find(s => geoName(s) === sname);
+        fillSelect(wardSel, wardListOf(sub).map(w => ({ value: geoName(w), label: geoName(w) })), '', '— choose ward —'); wardSel.disabled = false;
+      };
+    }
+
+    async function loadAfForAdmin(id, isPrefill, p) {
+      const msg = document.getElementById('msg_' + id);
+      const provSel = document.getElementById('f_af_prov_' + id);
+      const distSel = document.getElementById('f_af_dist_' + id);
+
+      if (!afProvinces) {
+        provSel.innerHTML = '<option value="">Loading provinces…</option>';
+        msg.className = 'edit-msg info'; msg.textContent = 'Loading Afghanistan locations…';
+        try { afProvinces = await loadAfghanistanHierarchy(); }
+        catch (e) { provSel.innerHTML = '<option value="">Failed to load</option>'; msg.className='edit-msg error'; msg.textContent = e.message; return; }
+      }
+      fillSelect(provSel, afProvinces.map(pr => ({ value: geoName(pr), label: geoName(pr) })), '', '— choose province —');
+      msg.textContent = ''; msg.className = 'edit-msg';
+
+      if (isPrefill && p && p.county) {
+        provSel.value = p.county;
+        const prov = afProvinces.find(pr => geoName(pr) === p.county);
+        if (prov) {
+          const districts = (prov.district || prov.districts || []).map(d => ({ value: geoName(d), label: geoName(d) }));
+          fillSelect(distSel, districts, '', '— choose district —'); distSel.disabled = false;
+          if (p.sub_county) distSel.value = p.sub_county;
+        }
+      }
+
+      provSel.onchange = () => {
+        const name = provSel.value;
+        if (!name) { distSel.innerHTML = '<option value="">—</option>'; distSel.disabled = true; return; }
+        const prov = afProvinces.find(pr => geoName(pr) === name);
+        const districts = (prov.district || prov.districts || []).map(d => ({ value: geoName(d), label: geoName(d) }));
+        fillSelect(distSel, districts, '', '— choose district —'); distSel.disabled = false;
+      };
+    }
+
+    async function loadGeoForAdmin(id, code) {
+      const box = document.getElementById('f_geoLevels_' + id);
+      box.innerHTML = '<p class="edit-msg info">Loading regions…</p>';
+      try {
+        const country = await geoCountryInfo(code);
+        if (!country) throw new Error('Country not found');
+        box.innerHTML = '';
+        const lab = document.createElement('label'); lab.textContent = 'Region / State';
+        const sel = document.createElement('select'); sel.innerHTML = '<option value="">Loading…</option>';
+        box.appendChild(lab); box.appendChild(sel);
+        const kids = await geoChildren(country.geonameId);
+        fillSelect(sel, kids.map(k => ({ value: k.geonameId, label: k.name })), '', '— choose —');
+      } catch (e) {
+        box.innerHTML = '<p class="edit-msg error">' + escapeHtml(e.message) + '</p>';
+      }
+    }
+
+    async function saveAdminProfileEdit(id, view) {
+      const msg = document.getElementById('msg_' + id);
+      const btn = document.querySelector(`button[data-action="save-edit"][data-id="${id}"]`);
+      msg.className = 'edit-msg'; msg.textContent = '';
+      
+      const code = document.getElementById('f_country_' + id).value;
+      const countryName = (COUNTRIES.find(c => c.c === code) || { n: code }).n;
+
+      const selectedRoles = [];
+      ALL_ROLES.forEach(r => {
+        if (document.getElementById('r_' + id + '_' + r.v).checked) selectedRoles.push(r.v);
+      });
+      if (!selectedRoles.length) {
+        msg.className = 'edit-msg error'; msg.textContent = 'Tick at least one role.'; btn.disabled = false; return;
+      }
+
+      let county = null, sub_county = null, ward = null, region = null;
+      if (code === 'ke') {
+        county = document.getElementById('f_ke_county_' + id).value || null;
+        sub_county = document.getElementById('f_ke_sub_' + id).value || null;
+        ward = document.getElementById('f_ke_ward_' + id).value || null;
+      } else if (code === 'af') {
+        county = document.getElementById('f_af_prov_' + id).value || null;
+        sub_county = document.getElementById('f_af_dist_' + id).value || null;
+      } else if (code) {
+        const sel = document.querySelector(`#f_geoLevels_${id} select`);
+        if (sel && sel.value) {
+          const opt = sel.options[sel.selectedIndex];
+          region = opt ? opt.text : null;
+        }
+      }
+
+      const updates = {
+        full_name:  document.getElementById('f_name_' + id).value.trim(),
+        phone:      document.getElementById('f_phone_' + id).value.trim() || null,
+        country:    countryName,
+        county, sub_county, ward, region,
+        town:       document.getElementById('f_town_' + id).value.trim() || null,
+        roles:      selectedRoles
+      };
+
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        await updateProfile(id, updates);
+        msg.className = 'edit-msg ok'; msg.textContent = '✅ Saved.';
+        profilesCache = await getProfiles();
+        setTimeout(() => renderProfilesList(view), 500);
+      } catch (err) {
+        msg.className = 'edit-msg error'; msg.textContent = '❌ ' + (err.message || 'Failed');
+        btn.disabled = false; btn.textContent = 'Save changes';
+      }
     }
 
     // ---------------- PRODUCTS ----------------
@@ -561,7 +744,6 @@
         const kind = reportTargetKind(r.target_type);
         const isOpen = r.status === 'open';
 
-        // Context-aware quick actions (only shown for open reports we know how to route)
         let quickActions = '';
         if (isOpen && kind === 'product') {
           quickActions = `
@@ -618,7 +800,6 @@
           const id = btn.dataset.id;
           const action = btn.dataset.action;
 
-          // ---- Quick actions that hit the target AND auto-resolve the report ----
           if (action === 'block-target' || action === 'delete-target') {
             const kind = btn.dataset.kind;
             const targetId = btn.dataset.target;
@@ -644,7 +825,6 @@
                            (action === 'delete-target' ? ' deleted' : ' blocked');
               await updateReport(id, { status: 'resolved', admin_note: note });
 
-              // Bust caches so other views reflect the change
               productsCache = [];
               listingsCache = [];
               profilesCache = [];
@@ -657,7 +837,6 @@
             return;
           }
 
-          // ---- Existing behaviour ----
           btn.disabled = true; btn.textContent = '…';
           try {
             if (action === 'resolve') await updateReport(id, { status: 'resolved' });
