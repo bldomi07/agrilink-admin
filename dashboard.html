@@ -18,6 +18,25 @@
     .location-line strong { color: #1c1c1c; }
     .or-sep { text-align: center; font-size: 12px; color: #aaa; margin: 10px 0 6px; }
     .hint { font-size: 11px; color: #888; margin: 2px 0 8px; }
+
+    /* Inline profile edit */
+    .edit-form { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #dfe6e1; }
+    .edit-form.show { display: block; }
+    .edit-form label { display: block; margin-top: 10px; font-size: 12px; font-weight: 600; color: #333; }
+    .edit-form input { width: 100%; padding: 10px; font-size: 14px; margin-top: 4px; border: 1px solid #cfd8d2; border-radius: 8px; background: #fbfdfb; font-family: inherit; }
+    .role-box { margin-top: 4px; border: 1px solid #cfd8d2; border-radius: 8px; padding: 2px 10px; background: #fbfdfb; }
+    .role-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #eef3ef; }
+    .role-row:last-child { border-bottom: 0; }
+    .role-row input[type=checkbox] { width: 18px; height: 18px; margin: 0; accent-color: #1e7a3c; }
+    .role-row label { margin: 0; font-weight: 500; font-size: 14px; color: #1c1c1c; flex: 1; cursor: pointer; }
+    .edit-actions { display: flex; gap: 6px; margin-top: 12px; }
+    .edit-actions button { flex: 1; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; border: 0; }
+    .btn-save { background: #1e7a3c; color: #fff; }
+    .btn-save:disabled { opacity: 0.6; }
+    .btn-cancel { background: #eee; color: #333; }
+    .edit-msg { margin-top: 8px; font-size: 12px; text-align: center; min-height: 16px; }
+    .edit-msg.ok { color: #146c34; }
+    .edit-msg.error { color: #b00020; }
   </style>
 </head>
 <body>
@@ -46,6 +65,16 @@
 
   <script src="supabase.js"></script>
   <script>
+    const ALL_ROLES = [
+      { v: 'farmer', l: 'Farmer' },
+      { v: 'buyer', l: 'Buyer' },
+      { v: 'seller', l: 'Seller' },
+      { v: 'service_provider', l: 'Service Provider' },
+      { v: 'job_seeker', l: 'Job Seeker' },
+      { v: 'transport_provider', l: 'Transport Provider' },
+      { v: 'machinery_provider', l: 'Machinery Provider' }
+    ];
+
     async function init() {
       const session = await requireAuth();
       if (!session) return;
@@ -133,20 +162,25 @@
       view.innerHTML = '<h2>Admins</h2>' + tableFromRows(admins);
     }
 
-    // ---------------- PROFILES ----------------
+    // ---------------- PROFILES (editable) ----------------
     async function renderProfiles(view) {
       const profiles = await getProfiles();
       if (!profiles || profiles.length === 0) {
-        view.innerHTML = '<h2>Profiles</h2><p class="small">No users yet.</p>'; return;
+        view.innerHTML = '<h2>Profiles</h2><p class="small">No users yet.</p>';
+        return;
       }
+
       let html = '<h2>Profiles</h2>';
+
       profiles.forEach(p => {
         const name = escapeHtml(p.full_name || p.user_name || '(no name)');
-        const roles = Array.isArray(p.roles) ? p.roles.join(', ') : (p.roles ? JSON.stringify(p.roles) : '');
-        const locParts = [p.town, p.ward, p.sub_county, p.county, p.country].filter(Boolean);
+        const rolesArr = Array.isArray(p.roles) ? p.roles : [];
+        const rolesText = rolesArr.join(', ');
+        const locParts = [p.town, p.ward, p.sub_county, p.county, p.region, p.country].filter(Boolean);
         const loc = locParts.length ? locParts.join(', ') : '—';
+
         html += `
-          <div class="profile-card">
+          <div class="profile-card" data-pid="${p.id}">
             <div class="profile-head">
               <strong>${name}</strong>
               ${p.is_verified ? '<span class="badge badge-ok">verified</span>' : '<span class="badge">unverified</span>'}
@@ -155,21 +189,118 @@
             </div>
             <div class="small">${escapeHtml(p.phone || '')} · ${escapeHtml(p.email || '')}</div>
             <div class="location-line">Location: <strong>${escapeHtml(loc)}</strong></div>
-            <div class="small">Roles: ${escapeHtml(roles)}</div>
+            <div class="small">Roles: ${escapeHtml(rolesText)}</div>
             <div class="profile-actions">
+              <button class="btn-sm" data-action="edit" data-id="${p.id}">Edit</button>
               <button class="btn-sm" data-action="verify" data-id="${p.id}" data-value="${!p.is_verified}">${p.is_verified ? 'Unverify' : 'Verify'}</button>
               <button class="btn-sm" data-action="activate" data-id="${p.id}" data-value="${!p.is_active}">${p.is_active ? 'Deactivate' : 'Activate'}</button>
               <button class="btn-sm ${p.is_blocked ? '' : 'btn-danger'}" data-action="block" data-id="${p.id}" data-value="${!p.is_blocked}">${p.is_blocked ? 'Unblock' : 'Block'}</button>
             </div>
+
+            <div class="edit-form" id="edit-${p.id}">
+              <label>Full name</label>
+              <input id="f_name_${p.id}" value="${escapeHtml(p.full_name || '')}">
+              <label>Phone</label>
+              <input id="f_phone_${p.id}" value="${escapeHtml(p.phone || '')}">
+              <label>Email</label>
+              <input id="f_email_${p.id}" value="${escapeHtml(p.email || '')}">
+
+              <label>Country</label>
+              <input id="f_country_${p.id}" value="${escapeHtml(p.country || '')}">
+              <label>Region / State</label>
+              <input id="f_region_${p.id}" value="${escapeHtml(p.region || '')}">
+              <label>County / District</label>
+              <input id="f_county_${p.id}" value="${escapeHtml(p.county || '')}">
+              <label>Sub-county</label>
+              <input id="f_sub_county_${p.id}" value="${escapeHtml(p.sub_county || '')}">
+              <label>Ward</label>
+              <input id="f_ward_${p.id}" value="${escapeHtml(p.ward || '')}">
+              <label>Town</label>
+              <input id="f_town_${p.id}" value="${escapeHtml(p.town || '')}">
+
+              <label>Roles</label>
+              <div class="role-box">
+                ${ALL_ROLES.map(r => `
+                  <div class="role-row">
+                    <input type="checkbox" id="r_${p.id}_${r.v}" value="${r.v}" ${rolesArr.includes(r.v) ? 'checked' : ''}>
+                    <label for="r_${p.id}_${r.v}">${r.l}</label>
+                  </div>
+                `).join('')}
+              </div>
+
+              <div class="edit-actions">
+                <button type="button" class="btn-cancel" data-action="cancel-edit" data-id="${p.id}">Cancel</button>
+                <button type="button" class="btn-save" data-action="save-edit" data-id="${p.id}">Save changes</button>
+              </div>
+              <p class="edit-msg" id="msg_${p.id}"></p>
+            </div>
           </div>
         `;
       });
+
       view.innerHTML = html;
+
       view.querySelectorAll('button[data-action]').forEach(btn => {
         btn.addEventListener('click', async () => {
           const id = btn.dataset.id;
-          const value = btn.dataset.value === 'true';
           const action = btn.dataset.action;
+          const value = btn.dataset.value === 'true';
+
+          if (action === 'edit') {
+            const form = document.getElementById('edit-' + id);
+            if (form) form.classList.toggle('show');
+            return;
+          }
+
+          if (action === 'cancel-edit') {
+            const form = document.getElementById('edit-' + id);
+            if (form) form.classList.remove('show');
+            return;
+          }
+
+          if (action === 'save-edit') {
+            const msg = document.getElementById('msg_' + id);
+            msg.className = 'edit-msg'; msg.textContent = '';
+            btn.disabled = true;
+
+            const selectedRoles = [];
+            ALL_ROLES.forEach(r => {
+              const cb = document.getElementById('r_' + id + '_' + r.v);
+              if (cb && cb.checked) selectedRoles.push(r.v);
+            });
+            if (!selectedRoles.length) {
+              msg.className = 'edit-msg error';
+              msg.textContent = 'Tick at least one role.';
+              btn.disabled = false;
+              return;
+            }
+
+            const updates = {
+              full_name:  document.getElementById('f_name_' + id).value.trim(),
+              phone:      document.getElementById('f_phone_' + id).value.trim() || null,
+              email:      document.getElementById('f_email_' + id).value.trim() || null,
+              country:    document.getElementById('f_country_' + id).value.trim() || null,
+              region:     document.getElementById('f_region_' + id).value.trim() || null,
+              county:     document.getElementById('f_county_' + id).value.trim() || null,
+              sub_county: document.getElementById('f_sub_county_' + id).value.trim() || null,
+              ward:       document.getElementById('f_ward_' + id).value.trim() || null,
+              town:       document.getElementById('f_town_' + id).value.trim() || null,
+              roles:      selectedRoles
+            };
+
+            try {
+              await updateProfile(id, updates);
+              msg.className = 'edit-msg ok';
+              msg.textContent = '✅ Saved.';
+              setTimeout(() => renderProfiles(view), 500);
+            } catch (err) {
+              msg.className = 'edit-msg error';
+              msg.textContent = '❌ ' + (err.message || 'Failed');
+              btn.disabled = false;
+            }
+            return;
+          }
+
           btn.disabled = true; btn.textContent = '…';
           try {
             if (action === 'verify')   await updateProfile(id, { is_verified: value });
@@ -332,7 +463,7 @@
       });
     }
 
-    // ---------------- ADS (webpage) ----------------
+    // ---------------- ADS ----------------
     async function renderAds(view) {
       const ads = await getAds();
       let html = '<h2>Webpage Advertisements</h2>';
@@ -343,11 +474,9 @@
           <form id="adCreateForm" style="margin-top:10px;">
             <label>Title</label>
             <input id="ad_title" required placeholder="e.g. Fresh Harvest Season!">
-
             <label>Description</label>
             <input id="ad_description" placeholder="Optional short line">
-
-            <label>Media (image or video shown in the ad)</label>
+            <label>Photo</label>
             <div class="photo-pick" id="adPhotoBox">
               <div id="adPhotoLabel">📷  Tap to choose a photo or video</div>
               <input type="file" id="adPhotoInput" accept="image/*,video/mp4,video/webm,video/quicktime">
@@ -361,9 +490,7 @@
               <input type="file" id="adFileInput">
             </div>
             <p class="hint" id="adFileHint">Uploads to AgriLink storage and becomes the ad link.</p>
-
             <div class="or-sep">— OR paste a URL below —</div>
-
             <input id="ad_link_url" placeholder="https://wa.me/254…  or  https://example.com">
 
             <label>Position</label>
@@ -459,16 +586,13 @@
       const fileHint  = view.querySelector('#adFileHint');
       const linkInput = view.querySelector('#ad_link_url');
 
-      /* Photo / video picker */
       photoBox.addEventListener('click', () => photoInput.click());
       photoInput.addEventListener('change', (e) => {
         const f = e.target.files[0];
         if (!f) return;
         pickedPhoto = f;
         photoLabel.textContent = '📷  ' + f.name;
-
         const isVid = f.type.startsWith('video/') || /\.(mp4|webm|mov|m4v|ogg)$/i.test(f.name);
-
         if (isVid) {
           photoPreview.style.display = 'none';
           videoPreview.src = URL.createObjectURL(f);
@@ -482,7 +606,6 @@
         photoBox.classList.add('has-file');
       });
 
-      /* Link file picker */
       fileBox.addEventListener('click', () => fileInput.click());
       fileInput.addEventListener('change', (e) => {
         const f = e.target.files[0];
@@ -546,6 +669,7 @@
       });
     }
 
+    // ---------------- HELPERS ----------------
     function tableFromRows(rows) {
       if (!rows || rows.length === 0) return '<p class="small">No rows.</p>';
       const cols = Object.keys(rows[0]);
