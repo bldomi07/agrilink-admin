@@ -148,18 +148,26 @@
 
   <script src="locations.js"></script>
   <script src="supabase.js"></script>
-  <script src="tour.js"></script> <!-- ✅ Tour added here -->
+  <script src="tour.js"></script>
   <script>
     let ALL_ITEMS = [];
     let state = { q: '', cat: '' };
     
-    /* Location filter state */
     let flt = { countryCode:'', countryName:'', region:'', county:'', sub_county:'', ward:'' };
     let keCounties = null;
     let afProvinces = null;
     let geoPath = [];
 
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', () => {
+      // ✅ Read the 'q' parameter from the URL
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('q')) {
+        document.getElementById('searchInput').value = urlParams.get('q');
+        state.q = urlParams.get('q').trim().toLowerCase();
+        updateClearBtn();
+      }
+      init();
+    });
 
     async function init() {
       const session = await getSession();
@@ -168,7 +176,6 @@
       attachFilterHandlers();
       attachLocationHandlers();
       
-      // Load all items by combining products and all listings for the search page
       await loadSearchItems();
     }
 
@@ -176,7 +183,6 @@
       const content = document.getElementById('content');
       content.innerHTML = '<p class="loading">Loading…</p>';
       try {
-        // Fetch everything concurrently
         const [products, services, jobs, machinery, farms] = await Promise.all([
           getPublicProducts(),
           getPublicListings('service'),
@@ -185,7 +191,6 @@
           getPublicListings('farm')
         ]);
 
-        // Combine into one array with a 'type' label for UI
         ALL_ITEMS = [
           ...products.map(p => ({ ...p, item_type: 'product' })),
           ...services.map(p => ({ ...p, item_type: 'service' })),
@@ -200,7 +205,6 @@
       }
     }
 
-    // ---------------- FILTERS ----------------
     function attachFilterHandlers() {
       const searchInput = document.getElementById('searchInput');
       const clearBtn = document.getElementById('clearBtn');
@@ -505,7 +509,6 @@
     // ---------------- RENDER ----------------
     function applyFilters() {
       return ALL_ITEMS.filter(p => {
-        // 1. Text Search
         if (state.q) {
           const title = (p.title || '').toLowerCase();
           const desc = (p.description || '').toLowerCase();
@@ -517,10 +520,8 @@
           }
         }
 
-        // 2. Category (only applies to products, but we'll match if the string exists)
         if (state.cat && (p.category || '') !== state.cat) return false;
 
-        // 3. Location
         if (flt.countryName && (p.country    || '') !== flt.countryName) return false;
         if (flt.region     && (p.region     || '') !== flt.region)     return false;
         if (flt.county     && (p.county     || '') !== flt.county)     return false;
@@ -544,14 +545,12 @@
         return;
       }
 
-      // Build the grid
       let html = '<div class="result-count">' + list.length + ' result' + (list.length === 1 ? '' : 's') + '</div>';
       html += '<div class="grid">' + list.map(cardHtml).join('') + '</div>';
       content.innerHTML = html;
     }
 
     function cardHtml(p) {
-      // Determine destination link based on item type
       const isProduct = p.item_type === 'product';
       const detailPage = isProduct ? 'product.html' : 'listing.html';
       const link = detailPage + '?id=' + encodeURIComponent(p.id) + (isProduct ? '' : '&type=' + p.item_type);
@@ -565,7 +564,6 @@
       const unit = p.unit && p.unit !== 'unit' ? ' / ' + escapeHtml(p.unit) : '';
       const place = [(p.location || p.town), p.ward, p.sub_county, p.county, p.region, p.country].filter(Boolean).slice(0, 3).join(', ');
 
-      // Add a small type label for non-products
       const typeTag = !isProduct ? '<div style="font-size:10px; color:#1e7a3c; font-weight:700; text-transform:uppercase; margin-bottom:2px;">' + escapeHtml(p.item_type) + '</div>' : '';
 
       return '<a class="card" href="' + link + '">' +
