@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search — AgriLink</title>
+  <link rel="stylesheet" href="app.css" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e7a3c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="AgriLink">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .search-header { padding: 12px; background: #fff; border-bottom: 1px solid #e6ece8; position: sticky; top: 56px; z-index: 9; }
+    .search-input-wrap { display: flex; gap: 8px; }
+    .search-input { flex: 1; padding: 14px 16px; border: 1px solid #cfd8d2; border-radius: 10px; font-size: 16px; background: #fbfdfb; }
+    .search-input:focus { outline: none; border-color: #1e7a3c; }
+    .clear-btn { padding: 11px 12px; background: #fff; color: #b00020; border: 1px solid #b00020; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; display: none; }
+    .clear-btn.show { display: inline-block; }
+    
+    .filters { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 0; scrollbar-width: none; }
+    .filters::-webkit-scrollbar { display: none; }
+    .chip { flex: 0 0 auto; padding: 8px 16px; font-size: 13px; font-weight: 600; color: #555; background: #f1f5f2; border: 0; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+    .chip.active { background: #1e7a3c; color: #fff; }
+    
+    .loc-btn {
+      width: 100%; text-align: left; padding: 12px 14px;
+      background: #fbfdfb; border: 1px solid #cfd8d2; border-radius: 10px;
+      font-family: inherit; font-size: 15px; color: #555;
+      cursor: pointer; display: flex; align-items: center; gap: 8px;
+      margin-top: 10px;
+    }
+    .loc-btn.has-value { border-color: #1e7a3c; color: #146c34; font-weight: 600; }
+    .loc-btn .caret { margin-left: auto; color: #888; }
+    
+    .loc-modal-bg {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      z-index: 1000; display: none; align-items: flex-end; justify-content: center;
+    }
+    .loc-modal-bg.show { display: flex; }
+    .loc-modal {
+      background: #fff; width: 100%; max-width: 520px;
+      max-height: 90vh; overflow-y: auto;
+      border-radius: 16px 16px 0 0; padding: 18px;
+    }
+    .loc-modal h3 { margin: 0 0 12px; font-size: 16px; color: #1e7a3c; }
+    .loc-modal label { display: block; font-size: 12px; font-weight: 600; color: #666; margin: 10px 0 4px; }
+    .loc-modal label:first-child { margin-top: 0; }
+    .loc-modal select { width: 100%; padding: 11px 12px; font-size: 14px; border: 1px solid #cfd8d2; border-radius: 8px; background: #fff; font-family: inherit; }
+    .loc-modal .info { font-size: 12px; color: #888; text-align: center; padding: 6px 0; }
+    .loc-modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .loc-modal-actions button { flex: 1; padding: 13px; font-size: 15px; font-weight: 700; border-radius: 10px; border: 0; cursor: pointer; }
+    .loc-modal-actions .clear { background: #eee; color: #333; }
+    .loc-modal-actions .done  { background: #1e7a3c; color: #fff; }
+    .hidden { display: none !important; }
+
+    .result-count { padding: 10px 16px; font-size: 13px; color: #666; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 12px 20px; }
+    .card { display: block; text-decoration: none; color: inherit; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+    .card:active { transform: scale(0.98); }
+    .card-img { position: relative; width: 100%; aspect-ratio: 1/1; background: #eef3ef; overflow: hidden; }
+    .card-img img { width: 100%; height: 100%; object-fit: cover; }
+    .card-img .placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 40px; color: #a8bfb0; }
+    .badge-featured { position: absolute; top: 8px; left: 8px; background: #f5a524; color: #fff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+    .card-body { padding: 8px 10px 12px; }
+    .card-title { font-size: 14px; font-weight: 600; color: #1c1c1c; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 36px; }
+    .card-price { font-size: 15px; font-weight: 700; color: #1e7a3c; margin-top: 4px; }
+    .card-place { font-size: 12px; color: #777; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    
+    .empty { text-align: center; padding: 40px 20px; color: #777; font-size: 14px; }
+    .loading { text-align: center; padding: 40px; color: #777; }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="logo">
+      <span class="logo-icon">🚜</span>
+      <span class="logo-text">AgriLink</span>
+    </div>
+    <a href="index.html" class="login-btn">Home</a>
+  </header>
+
+  <div class="search-header">
+    <div class="search-input-wrap">
+      <input id="searchInput" class="search-input" type="search" placeholder="Search products, services, places…" autocomplete="off">
+      <button id="clearBtn" class="clear-btn">Clear</button>
+    </div>
+    
+    <div class="filters" id="categoryFilters">
+      <button class="chip active" data-cat="">All</button>
+      <button class="chip" data-cat="grain">Grain</button>
+      <button class="chip" data-cat="vegetable">Vegetables</button>
+      <button class="chip" data-cat="fruit">Fruits</button>
+      <button class="chip" data-cat="livestock">Livestock</button>
+      <button class="chip" data-cat="dairy">Dairy</button>
+      <button class="chip" data-cat="poultry">Poultry</button>
+      <button class="chip" data-cat="seed">Seeds</button>
+      <button class="chip" data-cat="other">Other</button>
+    </div>
+    
+    <button type="button" class="loc-btn" id="locOpenBtn">
+      📍 <span id="locSummary">All locations</span>
+      <span class="caret">▾</span>
+    </button>
+  </div>
+
+  <main id="content">
+    <p class="loading">Loading…</p>
+  </main>
+
+  <!-- Location Modal -->
+  <div class="loc-modal-bg" id="locModalBg">
+    <div class="loc-modal">
+      <h3>📍 Choose location</h3>
+
+      <label>Country</label>
+      <select id="flt_country"><option value="">— All countries —</option></select>
+
+      <div id="flt_kenyaBox" class="hidden">
+        <label>County</label>
+        <select id="flt_ke_county"><option value="">— choose county —</option></select>
+        <label>Sub-county</label>
+        <select id="flt_ke_sub" disabled><option value="">— choose county first —</option></select>
+        <label>Ward</label>
+        <select id="flt_ke_ward" disabled><option value="">— choose sub-county first —</option></select>
+      </div>
+
+      <div id="flt_afBox" class="hidden">
+        <label>Province</label>
+        <select id="flt_af_province"><option value="">— choose province —</option></select>
+        <label>District</label>
+        <select id="flt_af_district" disabled><option value="">— choose province first —</option></select>
+      </div>
+
+      <div id="flt_geoBox" class="hidden">
+        <div id="flt_geoLevels"></div>
+      </div>
+
+      <div class="loc-modal-actions">
+        <button type="button" class="clear" id="locClearBtn">Clear</button>
+        <button type="button" class="done"  id="locDoneBtn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="locations.js"></script>
+  <script src="supabase.js"></script>
+  <script src="tour.js"></script> <!-- ✅ Tour added here -->
+  <script>
+    let ALL_ITEMS = [];
+    let state = { q: '', cat: '' };
+    
+    /* Location filter state */
+    let flt = { countryCode:'', countryName:'', region:'', county:'', sub_county:'', ward:'' };
+    let keCounties = null;
+    let afProvinces = null;
+    let geoPath = [];
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    async function init() {
+      const session = await getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+
+      attachFilterHandlers();
+      attachLocationHandlers();
+      
+      // Load all items by combining products and all listings for the search page
+      await loadSearchItems();
+    }
+
+    async function loadSearchItems() {
+      const content = document.getElementById('content');
+      content.innerHTML = '<p class="loading">Loading…</p>';
+      try {
+        // Fetch everything concurrently
+        const [products, services, jobs, machinery, farms] = await Promise.all([
+          getPublicProducts(),
+          getPublicListings('service'),
+          getPublicListings('job'),
+          getPublicListings('machinery'),
+          getPublicListings('farm')
+        ]);
+
+        // Combine into one array with a 'type' label for UI
+        ALL_ITEMS = [
+          ...products.map(p => ({ ...p, item_type: 'product' })),
+          ...services.map(p => ({ ...p, item_type: 'service' })),
+          ...jobs.map(p => ({ ...p, item_type: 'job' })),
+          ...machinery.map(p => ({ ...p, item_type: 'machinery' })),
+          ...farms.map(p => ({ ...p, item_type: 'farm' }))
+        ];
+
+        render();
+      } catch (err) {
+        content.innerHTML = '<div class="empty">Failed to load: ' + escapeHtml(err.message) + '</div>';
+      }
+    }
+
+    // ---------------- FILTERS ----------------
+    function attachFilterHandlers() {
+      const searchInput = document.getElementById('searchInput');
+      const clearBtn = document.getElementById('clearBtn');
+
+      searchInput.addEventListener('input', () => {
+        state.q = searchInput.value.trim().toLowerCase();
+        updateClearBtn();
+        render();
+      });
+
+      clearBtn.addEventListener('click', () => {
+        state.q = '';
+        state.cat = '';
+        searchInput.value = '';
+        resetLocationFilter();
+        document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.cat === ''));
+        updateClearBtn();
+        render();
+      });
+
+      document.querySelectorAll('.chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          state.cat = chip.dataset.cat;
+          updateClearBtn();
+          render();
+        });
+      });
+    }
+
+    function updateClearBtn() {
+      const active = state.q || state.cat || flt.countryCode || flt.region || flt.county || flt.sub_county || flt.ward;
+      document.getElementById('clearBtn').classList.toggle('show', !!active);
+    }
+
+    // ---------------- LOCATION LOGIC ----------------
+    function attachLocationHandlers() {
+      const sel = document.getElementById('flt_country');
+      let html = '<option value="">— All countries —</option>';
+      COUNTRIES.forEach(c => html += '<option value="' + c.c + '">' + escHtml(c.n) + '</option>');
+      sel.innerHTML = html;
+
+      sel.addEventListener('change', onCountry);
+      document.getElementById('flt_ke_county').addEventListener('change', onKeCounty);
+      document.getElementById('flt_ke_sub').addEventListener('change', onKeSub);
+      document.getElementById('flt_ke_ward').addEventListener('change', () => {
+        flt.ward = document.getElementById('flt_ke_ward').value || '';
+        updateSummary(); updateClearBtn(); render();
+      });
+      document.getElementById('flt_af_province').addEventListener('change', onAfProv);
+      document.getElementById('flt_af_district').addEventListener('change', () => {
+        flt.county = document.getElementById('flt_af_district').value || '';
+        updateSummary(); updateClearBtn(); render();
+      });
+
+      const bg = document.getElementById('locModalBg');
+      document.getElementById('locOpenBtn').addEventListener('click', () => bg.classList.add('show'));
+      document.getElementById('locDoneBtn').addEventListener('click', () => {
+        bg.classList.remove('show');
+        updateSummary(); updateClearBtn(); render();
+      });
+      document.getElementById('locClearBtn').addEventListener('click', () => {
+        resetLocationFilter();
+        updateSummary(); updateClearBtn(); render();
+      });
+      bg.addEventListener('click', (e) => {
+        if (e.target === bg) {
+          bg.classList.remove('show');
+          updateSummary(); updateClearBtn(); render();
+        }
+      });
+    }
+
+    function resetLocationFilter() {
+      flt = { countryCode:'', countryName:'', region:'', county:'', sub_county:'', ward:'' };
+      geoPath = [];
+      document.getElementById('flt_country').value = '';
+      document.getElementById('flt_ke_county').innerHTML = '<option value="">— choose county —</option>';
+      document.getElementById('flt_ke_sub').innerHTML = '<option value="">— choose county first —</option>';
+      document.getElementById('flt_ke_sub').disabled = true;
+      document.getElementById('flt_ke_ward').innerHTML = '<option value="">— choose sub-county first —</option>';
+      document.getElementById('flt_ke_ward').disabled = true;
+      document.getElementById('flt_af_province').innerHTML = '<option value="">— choose province —</option>';
+      document.getElementById('flt_af_district').innerHTML = '<option value="">— choose province first —</option>';
+      document.getElementById('flt_af_district').disabled = true;
+      document.getElementById('flt_geoLevels').innerHTML = '';
+      showBox('');
+      updateSummary();
+    }
+
+    function showBox(id) {
+      ['flt_kenyaBox','flt_afBox','flt_geoBox'].forEach(x => {
+        document.getElementById(x).classList.toggle('hidden', x !== id);
+      });
+    }
+
+    async function onCountry() {
+      const code = document.getElementById('flt_country').value;
+
+      flt.region = ''; flt.county = ''; flt.sub_county = ''; flt.ward = '';
+      geoPath = [];
+      document.getElementById('flt_geoLevels').innerHTML = '';
+      document.getElementById('flt_ke_sub').innerHTML = '<option value="">— choose county first —</option>';
+      document.getElementById('flt_ke_sub').disabled = true;
+      document.getElementById('flt_ke_ward').innerHTML = '<option value="">— choose sub-county first —</option>';
+      document.getElementById('flt_ke_ward').disabled = true;
+      document.getElementById('flt_af_district').innerHTML = '<option value="">— choose province first —</option>';
+      document.getElementById('flt_af_district').disabled = true;
+
+      if (!code) {
+        flt.countryCode = ''; flt.countryName = '';
+        showBox('');
+        updateSummary(); updateClearBtn(); render();
+        return;
+      }
+
+      const c = COUNTRIES.find(x => x.c === code);
+      flt.countryCode = code;
+      flt.countryName = c ? c.n : '';
+
+      if (code === 'ke') {
+        showBox('flt_kenyaBox');
+        await loadKenyaCounties();
+      } else if (code === 'af') {
+        showBox('flt_afBox');
+        await loadAfProvinces();
+      } else {
+        showBox('flt_geoBox');
+        await loadGeoNamesCountry(code);
+      }
+      updateSummary(); updateClearBtn(); render();
+    }
+
+    async function loadKenyaCounties() {
+      const sel = document.getElementById('flt_ke_county');
+      if (keCounties) {
+        fillSelect(sel, keCounties.map(c => ({ value: geoName(c), label: geoName(c) })), '', '— choose county —');
+        return;
+      }
+      sel.innerHTML = '<option value="">Loading counties…</option>';
+      try {
+        keCounties = await loadKenyaHierarchy();
+        fillSelect(sel, keCounties.map(c => ({ value: geoName(c), label: geoName(c) })), '', '— choose county —');
+      } catch (e) {
+        sel.innerHTML = '<option value="">Failed to load</option>';
+      }
+    }
+
+    function onKeCounty() {
+      const name = document.getElementById('flt_ke_county').value;
+      const subSel = document.getElementById('flt_ke_sub');
+      const wardSel = document.getElementById('flt_ke_ward');
+      flt.county = name || '';
+      flt.sub_county = ''; flt.ward = '';
+      if (!name) {
+        subSel.innerHTML = '<option value="">— choose county first —</option>';
+        subSel.disabled = true;
+        wardSel.innerHTML = '<option value="">— choose sub-county first —</option>';
+        wardSel.disabled = true;
+        updateSummary(); updateClearBtn(); render(); return;
+      }
+      const county = keCounties.find(c => geoName(c) === name);
+      const subs = geoChildrenOf(county).map(s => ({ value: geoName(s), label: geoName(s) }));
+      fillSelect(subSel, subs, '', '— choose sub-county —');
+      subSel.disabled = false;
+      wardSel.innerHTML = '<option value="">— choose sub-county first —</option>';
+      wardSel.disabled = true;
+      updateSummary(); updateClearBtn(); render();
+    }
+
+    function onKeSub() {
+      const cname = document.getElementById('flt_ke_county').value;
+      const sname = document.getElementById('flt_ke_sub').value;
+      const wardSel = document.getElementById('flt_ke_ward');
+      flt.sub_county = sname || ''; flt.ward = '';
+      if (!cname || !sname) {
+        wardSel.innerHTML = '<option value="">— choose sub-county first —</option>';
+        wardSel.disabled = true;
+        updateSummary(); updateClearBtn(); render(); return;
+      }
+      const county = keCounties.find(c => geoName(c) === cname);
+      const sub = geoChildrenOf(county).find(s => geoName(s) === sname);
+      const wards = wardListOf(sub).map(w => ({ value: geoName(w), label: geoName(w) }));
+      fillSelect(wardSel, wards, '', '— choose ward —');
+      wardSel.disabled = false;
+      updateSummary(); updateClearBtn(); render();
+    }
+
+    async function loadAfProvinces() {
+      const sel = document.getElementById('flt_af_province');
+      if (afProvinces) {
+        fillSelect(sel, afProvinces.map(p => ({ value: geoName(p), label: geoName(p) })), '', '— choose province —');
+        return;
+      }
+      sel.innerHTML = '<option value="">Loading provinces…</option>';
+      try {
+        afProvinces = await loadAfghanistanHierarchy();
+        fillSelect(sel, afProvinces.map(p => ({ value: geoName(p), label: geoName(p) })), '', '— choose province —');
+      } catch (e) {
+        sel.innerHTML = '<option value="">Failed to load</option>';
+      }
+    }
+
+    function onAfProv() {
+      const name = document.getElementById('flt_af_province').value;
+      const distSel = document.getElementById('flt_af_district');
+      flt.region = name || ''; flt.county = '';
+      if (!name) {
+        distSel.innerHTML = '<option value="">— choose province first —</option>';
+        distSel.disabled = true;
+        updateSummary(); updateClearBtn(); render(); return;
+      }
+      const prov = afProvinces.find(p => geoName(p) === name);
+      const districts = (prov.district || prov.districts || []).map(d => ({ value: geoName(d), label: geoName(d) }));
+      fillSelect(distSel, districts, '', '— choose district —');
+      distSel.disabled = false;
+      updateSummary(); updateClearBtn(); render();
+    }
+
+    async function loadGeoNamesCountry(code) {
+      const box = document.getElementById('flt_geoLevels');
+      box.innerHTML = '<p class="info">Loading…</p>';
+      try {
+        const country = await geoCountryInfo(code);
+        if (!country) throw new Error('Country not found');
+        box.innerHTML = '';
+        geoPath = [];
+        await renderGeoLevel(0, country.geonameId);
+      } catch (e) {
+        box.innerHTML = '<p class="info">' + escHtml(e.message) + '</p>';
+      }
+    }
+
+    async function renderGeoLevel(level, parentId) {
+      geoPath = geoPath.slice(0, level);
+
+      const box = document.getElementById('flt_geoLevels');
+      while (box.children.length > level * 2) box.removeChild(box.lastChild);
+
+      const LABELS = ['Region / State', 'County / District', 'Sub-county', 'Ward'];
+      const lab = document.createElement('label');
+      lab.textContent = LABELS[level] || ('Level ' + (level + 1));
+
+      const sel = document.createElement('select');
+      sel.innerHTML = '<option value="">Loading…</option>';
+
+      box.appendChild(lab);
+      box.appendChild(sel);
+
+      try {
+        const kids = await geoChildren(parentId);
+        if (!kids.length) {
+          box.removeChild(lab);
+          box.removeChild(sel);
+          syncGeoFilter();
+          updateSummary(); updateClearBtn(); render();
+          return;
+        }
+        fillSelect(sel, kids.map(k => ({ value: k.geonameId, label: k.name })), '', '— choose —');
+
+        sel.addEventListener('change', async () => {
+          const id = sel.value;
+          if (!id) {
+            geoPath = geoPath.slice(0, level);
+            syncGeoFilter();
+            updateSummary(); updateClearBtn(); render();
+            return;
+          }
+          const name = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+          geoPath[level] = { id: id, name: name };
+          syncGeoFilter();
+          if (level + 1 < 4) await renderGeoLevel(level + 1, id);
+          updateSummary(); updateClearBtn(); render();
+        });
+      } catch (e) {
+        box.removeChild(lab);
+        box.removeChild(sel);
+      }
+    }
+
+    function syncGeoFilter() {
+      flt.region     = geoPath[0] ? geoPath[0].name : '';
+      flt.county     = geoPath[1] ? geoPath[1].name : '';
+      flt.sub_county = geoPath[2] ? geoPath[2].name : '';
+      flt.ward       = geoPath[3] ? geoPath[3].name : '';
+    }
+
+    function updateSummary() {
+      const el = document.getElementById('locSummary');
+      const btn = document.getElementById('locOpenBtn');
+      const parts = [flt.countryName, flt.region, flt.county, flt.sub_county, flt.ward].filter(Boolean);
+      if (!parts.length) {
+        el.textContent = 'All locations';
+        btn.classList.remove('has-value');
+      } else {
+        el.textContent = parts.join(' → ');
+        btn.classList.add('has-value');
+      }
+    }
+
+    // ---------------- RENDER ----------------
+    function applyFilters() {
+      return ALL_ITEMS.filter(p => {
+        // 1. Text Search
+        if (state.q) {
+          const title = (p.title || '').toLowerCase();
+          const desc = (p.description || '').toLowerCase();
+          const seller = (p.seller_name || '').toLowerCase();
+          const place = [p.country, p.region, p.county, p.sub_county, p.ward, p.location, p.town].filter(Boolean).join(' ').toLowerCase();
+          
+          if (!title.includes(state.q) && !desc.includes(state.q) && !seller.includes(state.q) && !place.includes(state.q)) {
+            return false;
+          }
+        }
+
+        // 2. Category (only applies to products, but we'll match if the string exists)
+        if (state.cat && (p.category || '') !== state.cat) return false;
+
+        // 3. Location
+        if (flt.countryName && (p.country    || '') !== flt.countryName) return false;
+        if (flt.region     && (p.region     || '') !== flt.region)     return false;
+        if (flt.county     && (p.county     || '') !== flt.county)     return false;
+        if (flt.sub_county && (p.sub_county || '') !== flt.sub_county) return false;
+        if (flt.ward       && (p.ward       || '') !== flt.ward)       return false;
+
+        return true;
+      });
+    }
+
+    function render() {
+      const content = document.getElementById('content');
+      const list = applyFilters();
+
+      if (ALL_ITEMS.length === 0) {
+        content.innerHTML = '<div class="empty">Nothing here yet.</div>';
+        return;
+      }
+      if (list.length === 0) {
+        content.innerHTML = '<div class="empty">No results found.<br>Try a different search term or location.</div>';
+        return;
+      }
+
+      // Build the grid
+      let html = '<div class="result-count">' + list.length + ' result' + (list.length === 1 ? '' : 's') + '</div>';
+      html += '<div class="grid">' + list.map(cardHtml).join('') + '</div>';
+      content.innerHTML = html;
+    }
+
+    function cardHtml(p) {
+      // Determine destination link based on item type
+      const isProduct = p.item_type === 'product';
+      const detailPage = isProduct ? 'product.html' : 'listing.html';
+      const link = detailPage + '?id=' + encodeURIComponent(p.id) + (isProduct ? '' : '&type=' + p.item_type);
+
+      const img = p.image_url
+        ? '<img src="' + escapeHtml(p.image_url) + '" alt="" loading="lazy" onerror="this.parentNode.innerHTML=\'<div class=&quot;placeholder&quot;>🌾</div>\'">'
+        : '<div class="placeholder">🌾</div>';
+
+      const featured = p.is_featured ? '<span class="badge-featured">Featured</span>' : '';
+      const price = (p.currency || 'KES') + ' ' + Number(p.price || 0).toLocaleString();
+      const unit = p.unit && p.unit !== 'unit' ? ' / ' + escapeHtml(p.unit) : '';
+      const place = [(p.location || p.town), p.ward, p.sub_county, p.county, p.region, p.country].filter(Boolean).slice(0, 3).join(', ');
+
+      // Add a small type label for non-products
+      const typeTag = !isProduct ? '<div style="font-size:10px; color:#1e7a3c; font-weight:700; text-transform:uppercase; margin-bottom:2px;">' + escapeHtml(p.item_type) + '</div>' : '';
+
+      return '<a class="card" href="' + link + '">' +
+          '<div class="card-img">' + img + featured + '</div>' +
+          '<div class="card-body">' +
+            typeTag +
+            '<div class="card-title">' + escapeHtml(p.title || '(untitled)') + '</div>' +
+            '<div class="card-price">' + escapeHtml(price) + unit + '</div>' +
+            '<div class="card-place">' + escapeHtml(place) + '</div>' +
+          '</div>' +
+        '</a>';
+    }
+
+    function escapeHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function escHtml(s) { return escapeHtml(s); }
+  </script>
+</body>
+</html>
