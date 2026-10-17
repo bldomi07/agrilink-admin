@@ -30,9 +30,10 @@
     .section p { margin: 0; line-height: 1.5; color: #333; font-size: 15px; }
     .seller-name { font-size: 16px; font-weight: 600; color: #1c1c1c; }
     .contact-bar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; gap: 8px; padding: 12px; background: #fff; border-top: 1px solid #e6ece8; max-width: 720px; margin: 0 auto; z-index: 20; }
-    .contact-bar a { flex: 1; text-align: center; text-decoration: none; padding: 14px; font-size: 15px; font-weight: 700; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .contact-bar a, .contact-bar button { flex: 1; text-align: center; text-decoration: none; padding: 14px; font-size: 15px; font-weight: 700; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; border: none; cursor: pointer; }
     .btn-call { background: #1e7a3c; color: #fff; }
     .btn-wa   { background: #25d366; color: #fff; }
+    .btn-share { background: #f1f5f2; color: #1e7a3c; border: 1px solid #1e7a3c !important; }
     .btn-disabled { flex: 1; text-align: center; padding: 14px; font-size: 15px; font-weight: 700; background: #eee; color: #999; border-radius: 10px; }
     .loading, .empty, .error { text-align: center; padding: 60px 20px; color: #777; font-size: 14px; }
     .error { color: #b00020; }
@@ -94,6 +95,7 @@
   </div>
 
   <script src="supabase.js"></script>
+  <script src="tour.js"></script>
   <script>
     let currentProductId = null;
     document.addEventListener('DOMContentLoaded', load);
@@ -129,8 +131,7 @@
       const price = (p.currency || 'KES') + ' ' + Number(p.price || 0).toLocaleString();
       const unit = p.unit ? ' / ' + escapeHtml(p.unit) : '';
       const quantity = p.quantity ? '<p class="meta">Available: <strong>' + escapeHtml(p.quantity) + ' ' + escapeHtml(p.unit || '') + '</strong></p>' : '';
-
-      // Full location path — ward, sub-county, county, country (falls back to old fields)
+      
       const fullLocation = [p.ward, p.sub_county, p.county, p.country].filter(Boolean).join(', ');
       const fallbackLocation = [p.location, p.county, p.country].filter(Boolean).join(', ');
       const place = fullLocation || fallbackLocation;
@@ -139,16 +140,25 @@
       const sellerName = p.seller_name ? escapeHtml(p.seller_name) : 'AgriLink Seller';
       const phoneRaw = (p.seller_phone || '').replace(/[^0-9]/g, '');
 
+      const pageUrl = window.location.href;
+      const shareTitle = p.title || 'AgriLink Listing';
+      
+      const shareButton = `<button class="btn-share" onclick="shareNative('${escapeHtml(shareTitle).replace(/'/g, "\\'")}', '${pageUrl}')">🔗 Share</button>`;
+
       let contactHtml = '';
       if (phoneRaw) {
         const waText = encodeURIComponent('Hi, I saw your listing "' + (p.title || '') + '" on AgriLink. Is it still available?');
         contactHtml = `
-          <div class="contact-bar">
-            <a class="btn-call" href="tel:+${escapeHtml(phoneRaw)}">📞 Call</a>
-            <a class="btn-wa" href="https://wa.me/${escapeHtml(phoneRaw)}?text=${waText}" target="_blank" rel="noopener">💬 WhatsApp</a>
+          <div class="contact-bar" style="gap: 4px;">
+            <a class="btn-call" style="flex:1;" href="tel:+${escapeHtml(phoneRaw)}">📞 Call</a>
+            <a class="btn-wa" style="flex:1;" href="https://wa.me/${escapeHtml(phoneRaw)}?text=${waText}" target="_blank" rel="noopener">💬 Chat</a>
+            ${shareButton}
           </div>`;
       } else {
-        contactHtml = '<div class="contact-bar"><div class="btn-disabled">Contact unavailable</div></div>';
+        contactHtml = `
+          <div class="contact-bar">
+            ${shareButton}
+          </div>`;
       }
 
       return `
@@ -217,10 +227,20 @@
       });
     }
 
+    function shareNative(title, url) {
+      if (window.AndroidShare && typeof window.AndroidShare.share === 'function') {
+        window.AndroidShare.share(title, url);
+      } else if (navigator.share) {
+        navigator.share({ title: title, url: url }).catch(() => {});
+      } else {
+        navigator.clipboard.writeText(url);
+        alert('Link copied to clipboard!');
+      }
+    }
+
     function escapeHtml(str) {
-      return String(str == null ? '' : str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
   </script>
-  <script src="tour.js"></script>
 </body>
 </html>
